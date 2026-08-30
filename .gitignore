@@ -1,0 +1,8 @@
+/* =====================================================================================
+   En esta carpeta se encuentra información que NO debe ir al repositorio.
+   Son archivos y carpetas locales que no son necesarios para el funcionamiento 
+   del proyecto ni para el trabajo en equipo.
+   ===================================================================================== */
+
+.env
+node_modules

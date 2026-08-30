@@ -1,0 +1,473 @@
+<style>
+  /* Define CSS variables - Dark Theme as Default */
+  :root {
+    --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #030712 100%);
+    --card-bg: rgba(17, 24, 39, 0.75);
+    --card-border: rgba(255, 255, 255, 0.08);
+    --text-primary: #f3f4f6;
+    --text-secondary: #9ca3af;
+    --glow-color: rgba(99, 102, 241, 0.15);
+
+    --entity-border: #334155;
+    --bg-odd: #1e293b;
+    --bg-even: #0f172a;
+    --text-color: #e2e8f0;
+    --divider-color: #334155;
+    --line-color: #818cf8;
+
+    --users-header-bg: #1e1b4b;
+    --users-header-border: #6366f1;
+    --users-header-text: #ffffff;
+
+    --students-header-bg: #064e3b;
+    --students-header-border: #10b981;
+    --students-header-text: #ffffff;
+
+    --sessions-header-bg: #4c1d95;
+    --sessions-header-border: #8b5cf6;
+    --sessions-header-text: #ffffff;
+  }
+  body {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  /* Custom Scrollbar Styles */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--bg-even);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--text-secondary);
+    border: 3px solid var(--bg-even);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--line-color);
+  }
+
+  /* Firefox Support */
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: var(--text-secondary) var(--bg-even);
+  }
+
+  /* Light mode override when explicitly requested by html[data-mode="light"] */
+  html[data-mode="light"] {
+    --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    --card-bg: #ffffff;
+    --card-border: rgba(0, 0, 0, 0.08);
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --glow-color: rgba(99, 102, 241, 0.03);
+
+    --entity-border: #cbd5e1;
+    --bg-odd: #f8fafc;
+    --bg-even: #f1f5f9;
+    --text-color: #1e293b;
+    --divider-color: #e2e8f0;
+    --line-color: #4f46e5;
+
+    --users-header-bg: #e0e7ff;
+    --users-header-border: #4f46e5;
+    --users-header-text: #1e1b4b;
+
+    --students-header-bg: #d1fae5;
+    --students-header-border: #059669;
+    --students-header-text: #064e3b;
+
+    --sessions-header-bg: #f5f3ff;
+    --sessions-header-border: #7c3aed;
+    --sessions-header-text: #4c1d95;
+  }
+
+  /* Page container wrapper */
+  .esquema-page-wrapper {
+    background: var(--bg-gradient);
+    color: var(--text-primary);
+    font-family:
+      "Plus Jakarta Sans",
+      "Outfit",
+      system-ui,
+      -apple-system,
+      sans-serif;
+    padding: 3rem 1.5rem;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    transition: background 0.3s ease;
+  }
+
+  .esquema-container {
+    max-width: 1100px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  .esquema-header {
+    text-align: center;
+  }
+
+  .esquema-title {
+    font-size: 2.25rem;
+    font-family: "Outfit", sans-serif;
+    font-weight: 800;
+    margin: 0;
+    background: linear-gradient(to right, #38bdf8, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.025em;
+  }
+
+  .esquema-subtitle {
+    color: var(--text-secondary);
+    font-size: 1.05rem;
+    margin-top: 0.5rem;
+    font-weight: 500;
+  }
+
+  /* Diagram container card styling */
+  .esquema-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--card-border);
+    border-radius: 24px;
+    padding: 3.5rem 2rem;
+    box-shadow:
+      0 25px 50px -12px rgba(0, 0, 0, 0.3),
+      0 0 50px var(--glow-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .esquema-card:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow:
+      0 30px 60px -15px rgba(0, 0, 0, 0.4),
+      0 0 60px rgba(99, 102, 241, 0.25);
+  }
+
+  #erd {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  /* SVG Mermaid Diagram Overrides */
+  #erd svg {
+    max-width: 100%;
+    height: auto !important;
+    background: transparent !important;
+  }
+
+  #erd svg.erDiagram .divider path {
+    stroke: var(--divider-color) !important;
+    stroke-opacity: 0.4;
+  }
+
+  #erd svg.erDiagram .row-rect-odd path,
+  #erd svg.erDiagram .row-rect-odd rect,
+  #erd svg.erDiagram .row-rect-even path,
+  #erd svg.erDiagram .row-rect-even rect {
+    stroke: none !important;
+  }
+
+  /* Alternate rows styling */
+  #erd svg.erDiagram .row-rect-odd rect,
+  #erd svg.erDiagram .row-rect-odd path {
+    fill: var(--bg-odd) !important;
+  }
+  #erd svg.erDiagram .row-rect-even rect,
+  #erd svg.erDiagram .row-rect-even path {
+    fill: var(--bg-even) !important;
+  }
+
+  /* Entity Main box border */
+  #erd svg.erDiagram #entity-USERS rect.entityBox,
+  #erd svg.erDiagram #entity-USERS rect:first-of-type {
+    fill: var(--bg-even) !important;
+    stroke: var(--users-header-border) !important;
+    stroke-width: 1.8px !important;
+  }
+  #erd svg.erDiagram #entity-STUDENTS rect.entityBox,
+  #erd svg.erDiagram #entity-STUDENTS rect:first-of-type {
+    fill: var(--bg-even) !important;
+    stroke: var(--students-header-border) !important;
+    stroke-width: 1.8px !important;
+  }
+  #erd svg.erDiagram #entity-SESSIONS rect.entityBox,
+  #erd svg.erDiagram #entity-SESSIONS rect:first-of-type {
+    fill: var(--bg-even) !important;
+    stroke: var(--sessions-header-border) !important;
+    stroke-width: 1.8px !important;
+  }
+
+  /* Specific Entity Headers background rects */
+  #erd svg.erDiagram #entity-USERS rect.entityLabelBox,
+  #erd svg.erDiagram #entity-USERS path.entityLabelBox {
+    fill: var(--users-header-bg) !important;
+    stroke: var(--users-header-border) !important;
+  }
+  #erd svg.erDiagram #entity-STUDENTS rect.entityLabelBox,
+  #erd svg.erDiagram #entity-STUDENTS path.entityLabelBox {
+    fill: var(--students-header-bg) !important;
+    stroke: var(--students-header-border) !important;
+  }
+  #erd svg.erDiagram #entity-SESSIONS rect.entityLabelBox,
+  #erd svg.erDiagram #entity-SESSIONS path.entityLabelBox {
+    fill: var(--sessions-header-bg) !important;
+    stroke: var(--sessions-header-border) !important;
+  }
+
+  /* Entity name title texts */
+  #erd svg.erDiagram text.entityLabel {
+    font-weight: 700 !important;
+    font-size: 14px !important;
+    letter-spacing: 0.05em;
+  }
+  #erd svg.erDiagram #entity-USERS text.entityLabel {
+    fill: var(--users-header-text) !important;
+  }
+  #erd svg.erDiagram #entity-STUDENTS text.entityLabel {
+    fill: var(--students-header-text) !important;
+  }
+  #erd svg.erDiagram #entity-SESSIONS text.entityLabel {
+    fill: var(--sessions-header-text) !important;
+  }
+
+  /* Attributes texts inside tables */
+  #erd svg.erDiagram text.attributeLabel {
+    fill: var(--text-color) !important;
+    font-size: 12.5px !important;
+  }
+
+  /* Relationship paths and labels */
+  #erd svg.erDiagram path.relationshipLine {
+    stroke: var(--line-color) !important;
+    stroke-width: 2.2px !important;
+    stroke-opacity: 0.95;
+    filter: drop-shadow(0px 0px 4px rgba(99, 102, 241, 0.35));
+  }
+
+  #erd svg.erDiagram rect.relationshipLabelBox {
+    fill: var(--bg-even) !important;
+    stroke: var(--entity-border) !important;
+    stroke-width: 1px !important;
+    rx: 4px;
+  }
+
+  #erd svg.erDiagram text.relationshipLabel {
+    fill: var(--text-color) !important;
+    font-weight: 600 !important;
+    font-size: 11.5px !important;
+  }
+
+  /* Legend Footer */
+  .esquema-footer {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 2rem;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+
+  .legend-users {
+    background: #6366f1;
+    box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
+  }
+  .legend-students {
+    background: #10b981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  }
+  .legend-sessions {
+    background: #8b5cf6;
+    box-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
+  }
+</style>
+
+<!-- Import Google Fonts for professional typography -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+  rel="stylesheet"
+/>
+
+<body>
+  <div class="esquema-page-wrapper">
+    <div class="esquema-container">
+      <header class="esquema-header">
+        <h1 class="esquema-title">Esquema de Base de Datos</h1>
+        <div class="esquema-subtitle">
+          Modelo de Entidad-Relación para el Sistema de Pedagogía
+        </div>
+      </header>
+
+      <div class="esquema-card">
+        <h2 class="sr-only">
+          Diagrama entidad-relación de las colecciones Users, Students y
+          Sessions
+        </h2>
+        <div id="erd"></div>
+      </div>
+
+      <div class="esquema-footer">
+        <div class="legend-item">
+          <span class="legend-dot legend-users"></span>
+          <span>Users (Pedagogos)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot legend-students"></span>
+          <span>Students (Alumnos)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot legend-sessions"></span>
+          <span>Sessions (Sesiones)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+<script type="module">
+  import mermaid from "https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs";
+
+  const themeMode = document.documentElement.dataset.mode;
+  // If data-mode is set, respect it. If not, default to dark (dark = true) for a darker layout.
+  const dark = themeMode ? themeMode === "dark" : true;
+
+  await document.fonts.ready;
+
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: "base",
+    fontFamily: '"Plus Jakarta Sans", "Outfit", system-ui, sans-serif',
+    themeVariables: {
+      darkMode: dark,
+      fontSize: "13px",
+      fontFamily: '"Plus Jakarta Sans", "Outfit", system-ui, sans-serif',
+
+      // Canvas colors
+      background: dark ? "#0b0f19" : "#f8fafc",
+      mainBkg: dark ? "#0b0f19" : "#f8fafc",
+
+      // Default entity background and borders
+      primaryColor: dark ? "#1e293b" : "#f8fafc",
+      primaryBorderColor: dark ? "#334155" : "#cbd5e1",
+      primaryTextColor: dark ? "#f8fafc" : "#0f172a",
+
+      // Alternate row backgrounds
+      attributeBackgroundColorOdd: dark ? "#1e293b" : "#f8fafc",
+      attributeBackgroundColorEven: dark ? "#0f172a" : "#f1f5f9",
+
+      // Line and text colors
+      lineColor: dark ? "#818cf8" : "#4f46e5",
+      textColor: dark ? "#cbd5e1" : "#1e293b",
+    },
+  });
+
+  const { svg } = await mermaid.render(
+    "erd-svg",
+    `erDiagram
+    USERS ||--o{ STUDENTS : "atiende (pedagogoAsignado)"
+    USERS ||--o{ SESSIONS : "imparte (pedagogo)"
+    STUDENTS ||--o{ SESSIONS : "recibe (alumno)"
+    USERS {
+      string nombre
+      string email
+      string password
+      string especialidad
+      string avatar
+      string rol
+    }
+    STUDENTS {
+      string nombre
+      string curso
+      number edad
+      string diagnostico
+      string nombreTutor
+      string emailTutor
+      string telefonoTutor
+      string avatar
+      objectId pedagogoAsignado FK
+    }
+    SESSIONS {
+      objectId alumno FK
+      objectId pedagogo FK
+      date fecha
+      string titulo
+      string notas
+      string estado
+      string documentoAdjunto
+    }
+  `,
+  );
+  document.getElementById("erd").innerHTML = svg;
+
+  // Modernize corners by replacing paths with rects
+  document.querySelectorAll("#erd svg.erDiagram .node").forEach((node) => {
+    const firstPath = node.querySelector("path[d]");
+    if (!firstPath) return;
+    const d = firstPath.getAttribute("d");
+    const nums = d.match(/-?[\d.]+/g)?.map(Number);
+    if (!nums || nums.length < 8) return;
+    const xs = [nums[0], nums[2], nums[4], nums[6]];
+    const ys = [nums[1], nums[3], nums[5], nums[7]];
+    const x = Math.min(...xs),
+      y = Math.min(...ys);
+    const w = Math.max(...xs) - x,
+      h = Math.max(...ys) - y;
+    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect.setAttribute("x", x);
+    rect.setAttribute("y", y);
+    rect.setAttribute("width", w);
+    rect.setAttribute("height", h);
+    rect.setAttribute("rx", "8");
+    for (const a of ["fill", "stroke", "stroke-width", "class", "style"]) {
+      if (firstPath.hasAttribute(a))
+        rect.setAttribute(a, firstPath.getAttribute(a));
+    }
+    firstPath.replaceWith(rect);
+  });
+
+  document
+    .querySelectorAll(
+      "#erd svg.erDiagram .row-rect-odd path, #erd svg.erDiagram .row-rect-even path",
+    )
+    .forEach((p) => {
+      p.setAttribute("stroke", "none");
+    });
+</script>
