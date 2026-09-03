@@ -2,7 +2,6 @@
 
 //Importamos el modelo de Student para poder interactuar con la base de datos
 import Student from "../models/Student.js";
-import User from "../models/User.js";
 
 //Definimos función para obtener estudiantes
 const getStudents = async (req, res) => {

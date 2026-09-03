@@ -4,7 +4,7 @@
 import User from "../models/User.js";
 
 //2. Importamos librerias de seguridad
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
 //3. Creamos la función para Registrar un Usuario/Pedagogo
@@ -36,13 +36,7 @@ const userRegister = async (req, res) => {
     const passwordHash = await bcrypt.hash(password, passwordSalt);
 
     //5. Definimos el Rol
-    let rol = "pedagogo";
-
-    if (email.includes("@admin.com")) {
-      rol = "admin";
-    } else {
-      rol = "pedagogo";
-    }
+    const rol = email.includes("@admin.com") ? "admin" : "pedagogo";
 
     //6 Creamos el nuevo usuario
     await User.create({
@@ -75,5 +69,52 @@ const userRegister = async (req, res) => {
   }
 };
 
+//4. Creamos la función Login
+const userLogin = async (req, res) => {
+  try {
+    //1. Recuperamos los datos de email y password
+    const { email, password } = req.body;
+
+    //Comprobación petición sin email o sin contraseña
+    if (!email || !password) {
+      return res.status(400).json({
+        error: "Campos obligatorios de email o contraseña no completados",
+      });
+    }
+
+    //2. Verificamos si el usuario existe
+    const user = await User.findOne({ email }).select("+password"); //+password para poder obtenerla ya que es private en el modelo
+
+    if (!user) {
+      return res.status(401).json({
+        error: "Usuario no registrado",
+      });
+    }
+
+    //Verificamos si la contraseña es correcta
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.status(401).json({
+        error: "Email o contraseña incorrectos",
+      });
+    }
+
+    //3. Generamos TOKEN de JWT si la contraseña es válida
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "2h",
+    });
+
+    //4. Enviamos el TOKEN al cliente con la respuesta exitosa
+    return res.status(200).json({ message: "Login exitoso", token });
+  } catch (error) {
+    console.log(error);
+
+    return res.status(400).json({
+      message: "Error al iniciar sesión",
+      error: error.message,
+    });
+  }
+};
 //Exportamos el controlador
-export { userRegister };
+export { userRegister, userLogin };

@@ -6,7 +6,7 @@ import { connectDB } from "./config/db.js";
 import studentRoutes from "./routes/student.routes.js";
 
 //Importamos authRoutes
-//import authRoutes from "./routes/auth.routes.js"; - TODO
+import authRoutes from "./routes/auth.routes.js";
 
 //Importamos Express
 import express from "express";
@@ -29,7 +29,8 @@ const PORT = process.env.PORT || 3000;
 
 //5. Definimos Rutas de la API
 app.use("/api/students", studentRoutes);
-//app.use("/api/auth/register", authRoutes); //TODO: Pendiente de implementar ruta de login
+app.use("/api/auth", authRoutes);
+
 
 
 //6. Conexión a la Base de Datos y arrancar servidor
