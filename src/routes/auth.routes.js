@@ -9,7 +9,7 @@ import express from "express";
 const router = express.Router();
 
 //4. Definimos rutas
-router.post("/register", userRegister); 
+router.post("/register", userRegister);
 router.post("/login", userLogin);
 
 //5. Exportamos
