@@ -45,6 +45,19 @@ const studentSchema = new Schema(
     diagnosis: {
       type: String,
       trim: true,
+      enum: [
+        "Dislexia",
+        "Discalculia",
+        "TDAH",
+        "Disgrafía",
+        "TEA",
+        "Discapacidad intelectual",
+        "Retraso del Lenguaje",
+        "Altas Capacidades",
+        "Retraso Madurativo",
+        "Ansiedad Escolar",
+        "Ninguno",
+      ],
       required: [true, "El diagnóstico es obligatorio"],
     },
     nameTutor: {
@@ -68,6 +81,12 @@ const studentSchema = new Schema(
     avatar: {
       type: String,
       default: "",
+    },
+    tutorRelationship: {
+      type: String,
+      trim: true,
+      enum: ["Madre", "Padre", "Tutor Legal"],
+      required: [true, "La relación con el tutor es obligatoria"],
     },
     pedagogoAsignado: {
       type: mongoose.Schema.Types.ObjectId,

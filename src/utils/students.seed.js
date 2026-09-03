@@ -61,6 +61,7 @@ const initializeSeeder = async () => {
           nameTutor,
           emailTutor,
           phoneNumberTutor,
+          tutorRelationship,
         ] = line.split(",").map((val) => val.trim());
 
         // Devolvemos un objeto con los datos del estudiante y lo relacionamos con el pedagogo por default.
@@ -72,6 +73,7 @@ const initializeSeeder = async () => {
           nameTutor,
           emailTutor,
           phoneNumberTutor,
+          tutorRelationship,
           pedagogoAsignado: pedagogo._id,
         };
       });
