@@ -2,6 +2,9 @@
 //1. Importamos las funciones del controlador
 import { userRegister, userLogin } from "../controllers/userController.js";
 
+//Importamos middleware de gestión de archivos
+import { uploadImage } from "../middlewares/file.middleware.js";
+
 //2. Importamos Express
 import express from "express";
 
@@ -9,7 +12,7 @@ import express from "express";
 const router = express.Router();
 
 //4. Definimos rutas
-router.post("/register", userRegister);
+router.post("/register", uploadImage.single("avatar"), userRegister); //"avatar" tiene que coincidir con el nombre del campo en el frontend para enviar el archivo
 router.post("/login", userLogin);
 
 //5. Exportamos
