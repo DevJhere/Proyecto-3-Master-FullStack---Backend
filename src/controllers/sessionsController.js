@@ -1,4 +1,4 @@
-import Sessions from "../models/Sessions.js";
+import Session from "../models/Sessions.js";
 import Student from "../models/Student.js";
 import User from "../models/User.js";
 

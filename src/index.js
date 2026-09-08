@@ -11,6 +11,9 @@ import studentRoutes from "./routes/student.routes.js";
 //Importamos authRoutes
 import authRoutes from "./routes/auth.routes.js";
 
+//Importamos sessionRoutes
+import sessionRoutes from "./routes/session.routes.js";
+
 //Importamos Express
 import express from "express";
 
@@ -36,6 +39,7 @@ const PORT = process.env.PORT || 3000;
 //5. Definimos Rutas de la API
 app.use("/api/students", studentRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/session", sessionRoutes);
 
 //6. Conexión a la Base de Datos y arrancar servidor
 app.use((req, res) => {

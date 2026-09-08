@@ -80,7 +80,8 @@ const studentSchema = new Schema(
     },
     avatar: {
       type: String,
-      default: "",
+      default:
+        "https://res.cloudinary.com/kvayxt5w/image/upload/v1788861354/profile-default.jpg",
     },
     tutorRelationship: {
       type: String,

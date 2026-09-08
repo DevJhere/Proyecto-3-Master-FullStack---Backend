@@ -41,7 +41,8 @@ const userSchema = new Schema(
     },
     avatar: {
       type: String, //URL Cloudinary
-      default: "",
+      default:
+        "https://res.cloudinary.com/kvayxt5w/image/upload/v1788861354/profile-default.jpg",
     },
     rol: {
       type: String,
