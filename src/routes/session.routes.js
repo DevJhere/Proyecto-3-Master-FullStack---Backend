@@ -1,5 +1,8 @@
 /* Definición de rutas para las Sesiones */
-import { createSession } from "../controllers/sessionsController.js";
+import {
+  createSession,
+  getSessions,
+} from "../controllers/sessionsController.js";
 import { uploadDocument } from "../middlewares/file.middleware.js";
 import { isAuth } from "../middlewares/auth.middleware.js";
 import express from "express";
@@ -14,6 +17,9 @@ router.post(
   uploadDocument.single("attachmentDocument"),
   createSession,
 );
+
+//Método GET - Endpoint: /api/sessions
+router.get("/", isAuth, getSessions);
 
 //Exportamos
 export default router;

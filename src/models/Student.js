@@ -80,8 +80,7 @@ const studentSchema = new Schema(
     },
     avatar: {
       type: String,
-      default:
-        "https://res.cloudinary.com/kvayxt5w/image/upload/v1788861354/profile-default.jpg",
+      default: "https://res.cloudinary.com/kvayxt5w/image/upload/v1788861354/profile-default.jpg", //Defecto: Imagen predeterminada
     },
     tutorRelationship: {
       type: String,

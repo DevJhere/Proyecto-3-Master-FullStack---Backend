@@ -13,7 +13,8 @@ const userRegister = async (req, res) => {
     //1. Obtenemos los datos del usuario - Destructuring
     const { name, email, password, specialization } = req.body;
 
-    let avatar = req.file ? req.file.path : ""; //Si hay archivo, guardamos la ruta, si no, string vacío
+    //Si hay archivo, guardamos la ruta, si no, undefined
+    let avatar = req.file ? req.file.path : undefined;
 
     //2. Verficiamos si los datos recuperados son correctos o estan completos
     if (!name || !email || !password || !specialization) {

@@ -1,6 +1,5 @@
 import Session from "../models/Sessions.js";
 import Student from "../models/Student.js";
-import User from "../models/User.js";
 
 //Crear sesión
 const createSession = async (req, res) => {
@@ -43,7 +42,7 @@ const createSession = async (req, res) => {
     }
 
     //Creamos la sesión
-    await Sessions.create({
+    await Session.create({
       student,
       pedagogoAsignado,
       date,
@@ -71,5 +70,30 @@ const createSession = async (req, res) => {
   }
 };
 
+//Obtener sesiones - Obtener todas las sesiones de los estudiantes asignados
+const getSessions = async (req, res) => {
+  try {
+    //1. Si es Admin, obtenemos todas las sesiones
+    //2. Si es Pedagogo, obtenemos todas las sesiones del pedagogo asignado
+    const queryFilter =
+      req.user.rol === "admin" ? {} : { pedagogoAsignado: req.user._id };
+
+    //3. Ejecutamos la busqueda
+    const sessions = await Session.find(queryFilter)
+      .populate("student", "name course diagnosis nameTutor") //Datos clave del alumno
+      .populate("pedagogoAsignado", "name email"); //Datos clave del pedagogo
+
+    //4. Respondemos con todas las sesiones
+    return res.status(200).json(sessions);
+  } catch (error) {
+    console.log(error);
+
+    return res.status(500).json({
+      message: "Error al obtener las sesiones",
+      error: error.message,
+    });
+  }
+};
+
 //Exportamos
-export { createSession };
+export { createSession, getSessions };
