@@ -1,6 +1,9 @@
 /* RUTAS PARA ESTUDIANTES */
 //1. Importamos la función del Controlador
-import { getStudents } from "../controllers/studentController.js";
+import {
+  getStudents,
+  getStudentByID,
+} from "../controllers/studentController.js";
 
 //Importamos el middleware
 import { isAuth } from "../middlewares/auth.middleware.js";
@@ -13,6 +16,7 @@ const router = express.Router();
 
 //Definimos las rutas
 router.get("/", isAuth, getStudents);
+router.get("/:id", isAuth, getStudentByID);
 
 //Exportamos router
 export default router;
