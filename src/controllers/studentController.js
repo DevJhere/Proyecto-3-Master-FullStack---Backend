@@ -3,6 +3,7 @@
 //Importamos el modelo de Student para poder interactuar con la base de datos
 import Student from "../models/Student.js";
 import Session from "../models/Sessions.js";
+import deleteFile from "../utils/deleteFiles.js";
 
 //Definimos función para obtener estudiantes
 const getStudents = async (req, res) => {
@@ -158,6 +159,9 @@ const deleteStudent = async (req, res) => {
     //1. Obtenemos el ID
     const { id } = req.params;
 
+    //Definimos variable para obtener el url por defecto
+    const defaultAvatar = process.env.IMAGE_DEFAULT || "profile-default.jpg";
+
     //2. Buscamos al estudiante por el ID
     const student = await Student.findById(id).populate(
       "pedagogoAsignado",
@@ -181,6 +185,25 @@ const deleteStudent = async (req, res) => {
         message: "No autorizado",
         error: "No tienes permiso para eliminar este estudiante",
       });
+    }
+
+    //Comprobamos que estudiante tiene un avatar
+    if (student.avatar) {
+      //Verificamos que no incluya la URL de imagen por defecto
+      if (!student.avatar.includes(defaultAvatar)) {
+        //Eliminamos el archivo de la base de datos
+        await deleteFile(student.avatar);
+      }
+    }
+
+    //Realizamos consulta para buscar todas las sesiones
+    const sessions = await Session.find({ student: id });
+
+    //Recorremos las sesiones encontradas
+    for (const session of sessions) {
+      if (session.attachmentDocument) {
+        await deleteFile(session.attachmentDocument, "raw");
+      }
     }
 
     //5. Eliminamos las sesiones del Estudiante
