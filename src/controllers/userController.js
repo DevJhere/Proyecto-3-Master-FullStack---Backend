@@ -2,6 +2,9 @@
 
 //1. Importamos los modelos
 import User from "../models/User.js";
+import Student from "../models/Student.js";
+import Session from "../models/Sessions.js";
+import deleteFile from "../utils/deleteFiles.js";
 
 //2. Importamos librerias de seguridad
 import bcrypt from "bcrypt";
@@ -119,5 +122,90 @@ const userLogin = async (req, res) => {
     });
   }
 };
+
+//Función para eliminar Usuario - Solo Administrador (Restricción preventiva si tiene dependencias)
+const deleteUser = async (req, res) => {
+  try {
+    //1. Obtenemos el ID del usuario
+    const { id } = req.params;
+
+    //2. Obtenemos todos los datos del usuario
+    const user = await User.findById(id);
+
+    //Verificamos que el usuario existe
+    if (!user) {
+      return res.status(404).json({
+        message: "Usuario no encontrado",
+        error: "El usuario no existe",
+      });
+    }
+
+    //3. Verificamos permisos: solo los administradores pueden eliminar usuarios
+    if (req.user.rol !== "admin") {
+      return res.status(403).json({
+        message: "No autorizado",
+        error: "No tienes permiso para eliminar usuarios",
+      });
+    }
+
+    //Evitamos que un administrador elimine su propia cuenta
+    if (req.user._id.equals(id)) {
+      return res.status(400).json({
+        message: "Operación no permitida",
+        error: "No puedes eliminar tu propia cuenta de administrador",
+      });
+    }
+
+    //4. Restricción preventiva: verificamos si tiene estudiantes o sesiones asignadas
+    const assignedStudentsCount = await Student.countDocuments({
+      pedagogoAsignado: id,
+    });
+    const assignedSessionsCount = await Session.countDocuments({
+      pedagogoAsignado: id,
+    });
+
+    if (assignedStudentsCount > 0 || assignedSessionsCount > 0) {
+      return res.status(400).json({
+        message: "No se puede eliminar el usuario",
+        error:
+          "El usuario tiene estudiantes o sesiones asignadas. Debes reasignarlos o gestionarlos antes de eliminarlo.",
+        details: {
+          estudiantesAsignados: assignedStudentsCount,
+          sesionesAsignadas: assignedSessionsCount,
+        },
+      });
+    }
+
+    //5. Eliminamos al usuario de la base de datos
+    await user.deleteOne();
+
+    //6. Limpiamos los archivos de Cloudinary si no es la imagen por defecto
+    const defaultAvatar = process.env.IMAGE_DEFAULT || "profile-default.jpg";
+
+    if (user.avatar && !user.avatar.includes(defaultAvatar)) {
+      await deleteFile(user.avatar);
+    }
+
+    //7. Devolvemos respuesta exitosa
+    return res.status(200).json({
+      message: "Usuario eliminado correctamente",
+    });
+  } catch (error) {
+    console.log(error);
+
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        message: "ID inválido",
+        error: error.message,
+      });
+    } else {
+      return res.status(500).json({
+        message: "Error interno del servidor",
+        error: error.message,
+      });
+    }
+  }
+};
+
 //Exportamos el controlador
-export { userRegister, userLogin };
+export { userRegister, userLogin, deleteUser };
