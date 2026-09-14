@@ -1,9 +1,10 @@
 /* RUTAS PARA ESTUDIANTES */
-//1. Importamos la función del Controlador
+//1. Importamos las funciones del Controlador Student
 import {
   getStudents,
   getStudentByID,
   updateStudent,
+  deleteStudent,
 } from "../controllers/studentController.js";
 
 //Importamos el middleware
@@ -20,6 +21,7 @@ const router = express.Router();
 router.get("/", isAuth, getStudents);
 router.get("/:id", isAuth, getStudentByID);
 router.put("/:id", isAuth, uploadImage.single("avatar"), updateStudent);
+router.delete("/:id", isAuth, deleteStudent);
 
 //Exportamos router
 export default router;

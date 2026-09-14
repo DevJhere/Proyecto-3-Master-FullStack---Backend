@@ -2,6 +2,7 @@
 
 //Importamos el modelo de Student para poder interactuar con la base de datos
 import Student from "../models/Student.js";
+import Session from "../models/Sessions.js";
 
 //Definimos función para obtener estudiantes
 const getStudents = async (req, res) => {
@@ -117,10 +118,7 @@ const updateStudent = async (req, res) => {
     const updatedStudent = await Student.findByIdAndUpdate(id, updateData, {
       new: true, //Devuelve el objeto actualizado
       runValidators: true, //Ejecuta las validaciones del schema
-    }).populate(
-      "pedagogoAsignado",
-      "name email",
-    );
+    }).populate("pedagogoAsignado", "name email");
 
     //6. Verificamos si se actualizó correctamente
     if (!updatedStudent) {
@@ -154,5 +152,63 @@ const updateStudent = async (req, res) => {
   }
 };
 
+//Función para eliminar Student
+const deleteStudent = async (req, res) => {
+  try {
+    //1. Obtenemos el ID
+    const { id } = req.params;
+
+    //2. Buscamos al estudiante por el ID
+    const student = await Student.findById(id).populate(
+      "pedagogoAsignado",
+      "name email",
+    );
+
+    //3. Verificamos que existe el estudiante
+    if (!student) {
+      return res.status(404).json({
+        message: "Estudiante no encontrado",
+        error: "El estudiante no existe",
+      });
+    }
+
+    //4. Verificamos que el pedagogo tenga permiso para eliminar al estudiante (RBAC)
+    if (
+      req.user.rol === "pedagogo" &&
+      !student.pedagogoAsignado?._id?.equals(req.user._id)
+    ) {
+      return res.status(403).json({
+        message: "No autorizado",
+        error: "No tienes permiso para eliminar este estudiante",
+      });
+    }
+
+    //5. Eliminamos las sesiones del Estudiante
+    await Session.deleteMany({ student: id });
+
+    //6. Eliminamos al Estudiante
+    await student.deleteOne();
+
+    //7. Devolvemos respuesta exitosa
+    return res.status(200).json({
+      message: "Estudiante eliminado correctamente",
+    });
+  } catch (error) {
+    console.log(error);
+
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        message: "ID inválido",
+        error: error.message,
+      });
+    } else {
+      return res.status(500).json({
+        message: "Error al eliminar estudiante",
+        error: error.message,
+      });
+    }
+  }
+};
+
 //Exportamos la función
-export { getStudents, getStudentByID, updateStudent };
+export { getStudents, getStudentByID, updateStudent, deleteStudent };
