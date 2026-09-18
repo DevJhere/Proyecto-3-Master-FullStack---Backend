@@ -123,7 +123,103 @@ const userLogin = async (req, res) => {
   }
 };
 
-//Función para eliminar Usuario - Solo Administrador (Restricción preventiva si tiene dependencias)
+//5. Creamos función para actualizar perfil de usuario.
+const updateProfileUser = async (req, res) => {
+  try {
+    //1. Obtenemos el ID del usuario
+    const { id } = req.params;
+
+    //2. Buscamos al usuario por su ID
+    const user = await User.findById(id);
+
+    //Verificamos si existe el usuario
+    if (!user) {
+
+      //Eliminamos el archivo si existe - Evitamos ocupar espacio en la nube
+      if (req.file) {
+        await deleteFile(req.file.path);
+      }
+
+      return res.status(404).json({
+        message: "Usuario no encontrado",
+        error: "El usuario no existe",
+      });
+    }
+
+    //3. Verificamos si el usuario logueado es el mismo que el usuario a actualizar o si es administrador
+    if (req.user.rol !== "admin" && !req.user._id.equals(id)) {
+      //Eliminamos el archivo si existe - Evitamos ocupar espacio en la nube
+      if (req.file) {
+        await deleteFile(req.file.path);
+      }
+
+      return res.status(403).json({
+        message: "No autorizado",
+        error: "No tienes permiso para actualizar el perfil de otro usuario",
+      });
+    }
+
+    //4. Extraemos los datos dinamicamente
+    let updateData = { ...req.body };
+    // Verficamos que si se actualiza pedagogo obtenga permisos de admin
+    if (req.user.rol !== "admin") {
+      delete updateData.rol;
+    }
+
+    //Protejemos la contraseña para evitar actualizarla desde este endpoint
+    if (updateData.password) {
+      delete updateData.password; //Eliminamos la contraseña para que no sea modificada desde este endpoint
+    }
+
+    // Actualizamos y eliminamos las imágenes de Cloudinary si no es la imagen por defecto
+    const defaultAvatar = process.env.IMAGE_DEFAULT || "profile-default.jpg";
+
+    if (req.file) {
+      updateData.avatar = req.file.path;
+
+      if (user.avatar && !user.avatar.includes(defaultAvatar)) {
+        await deleteFile(user.avatar);
+      }
+    }
+
+    //5. Actualizamos los datos
+    const updatedUser = await User.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    });
+
+    return res.status(200).json({
+      message: "Perfil actualizado correctamente",
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.log(error);
+
+    //Eliminamos el archivo si existe - Evitamos ocupar espacio en la nube
+    if (req.file) {
+      await deleteFile(req.file.path);
+    }
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        message: "Datos incorrectos del usuario",
+        error: error.message,
+      });
+    } else if (error.name === "CastError") {
+      return res.status(400).json({
+        message: "ID de usuario inválido",
+        error: error.message,
+      });
+    } else {
+      return res.status(500).json({
+        message: "Error interno del servidor al actualizar perfil",
+        error: error.message,
+      });
+    }
+  }
+};
+
+//6. Función para eliminar Usuario - Solo Administrador (Restricción preventiva si tiene dependencias)
 const deleteUser = async (req, res) => {
   try {
     //1. Obtenemos el ID del usuario
@@ -208,4 +304,4 @@ const deleteUser = async (req, res) => {
 };
 
 //Exportamos el controlador
-export { userRegister, userLogin, deleteUser };
+export { userRegister, userLogin, deleteUser, updateProfileUser };
