@@ -21,7 +21,9 @@ const getStudents = async (req, res) => {
     );
 
     //2. Devolvemos respuesta exitosa
-    return res.status(200).json(students);
+    return res.status(200).json({
+      students,
+    });
   } catch (error) {
     //3. Si obtenemos un error en la base de datos
     console.log(error);
@@ -308,8 +310,18 @@ const updateStudent = async (req, res) => {
       if (!pedagogo) {
         pedagogo = await User.findOne({
           $or: [
-            { name: new RegExp(`^${updateData.pedagogoAsignado.toString().trim()}$`, "i") },
-            { email: updateData.pedagogoAsignado.toString().trim().toLowerCase() },
+            {
+              name: new RegExp(
+                `^${updateData.pedagogoAsignado.toString().trim()}$`,
+                "i",
+              ),
+            },
+            {
+              email: updateData.pedagogoAsignado
+                .toString()
+                .trim()
+                .toLowerCase(),
+            },
           ],
         });
       }

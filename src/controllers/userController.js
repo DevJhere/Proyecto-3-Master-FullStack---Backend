@@ -131,6 +131,40 @@ const userLogin = async (req, res) => {
   }
 };
 
+//5. Función para Listar Usuarios/Pedagogos
+const getAllUsers = async (req, res) => {
+  try {
+    //Obtnemos datos solo usuarios/pedagogos
+    const users = await User.find().select("-password");
+
+    if (!users) {
+      return res.status(404).json({
+        message: "No se encontraron usuarios",
+        error: "No hay usuarios registrados",
+      });
+    }
+
+    //2. Enviamos la respuesta
+    return res.status(200).json({
+      users,
+    });
+  } catch (error) {
+    console.log(error);
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        message: "Datos incorrectos del usuario",
+        error: error.message,
+      });
+    } else {
+      return res.status(500).json({
+        message: "Error al obtener usuarios",
+        error: error.message,
+      });
+    }
+  }
+};
+
 //5. Creamos función para actualizar perfil de usuario.
 const updateProfileUser = async (req, res) => {
   try {
@@ -310,7 +344,6 @@ const deleteUser = async (req, res) => {
   }
 };
 
-
 //7. Función que recupera el perfil del usuario logueado
 const getMe = async (req, res) => {
   try {
@@ -326,4 +359,11 @@ const getMe = async (req, res) => {
 };
 
 //Exportamos el controlador
-export { userRegister, userLogin, deleteUser, updateProfileUser, getMe };
+export {
+  userRegister,
+  userLogin,
+  deleteUser,
+  updateProfileUser,
+  getMe,
+  getAllUsers,
+};
