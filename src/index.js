@@ -42,8 +42,8 @@ const PORT = process.env.PORT || 3000;
 //5. Definimos Rutas de la API
 app.use("/api/students", studentRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/session", sessionRoutes);
-app.use("/api/user", userRoutes);
+app.use("/api/sessions", sessionRoutes);
+app.use("/api/users", userRoutes);
 
 //6. Conexión a la Base de Datos y arrancar servidor
 app.use((req, res) => {

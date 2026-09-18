@@ -1,15 +1,21 @@
 /* Controlador para obtener estudiantes */
 
 //Importamos el modelo de Student para poder interactuar con la base de datos
+import mongoose from "mongoose";
 import Student from "../models/Student.js";
+import User from "../models/User.js";
 import Session from "../models/Sessions.js";
 import deleteFile from "../utils/deleteFiles.js";
 
 //Definimos función para obtener estudiantes
 const getStudents = async (req, res) => {
   try {
+    // Si es Admin obtenemos todos los estudiantes, si es pedagogo obtenemos solo los asignados
+    const queryFilter =
+      req.user.rol === "admin" ? {} : { pedagogoAsignado: req.user._id };
+
     //1. Obtenemos los datos del estudiante
-    const students = await Student.find().populate(
+    const students = await Student.find(queryFilter).populate(
       "pedagogoAsignado",
       "name email",
     );
@@ -76,6 +82,180 @@ const getStudentByID = async (req, res) => {
   }
 };
 
+//Función para dar de alta un estudiante
+const createStudent = async (req, res) => {
+  try {
+    //1. Recuperar los datos
+    const {
+      name,
+      age,
+      course,
+      diagnosis,
+      nameTutor,
+      emailTutor,
+      phoneNumberTutor,
+      tutorRelationship,
+    } = req.body;
+
+    //Verificamos que los campos obligatorios se hayan enviado
+    if (
+      !name ||
+      !age ||
+      !course ||
+      !diagnosis ||
+      !nameTutor ||
+      !emailTutor ||
+      !phoneNumberTutor ||
+      !tutorRelationship
+    ) {
+      if (req.file) {
+        await deleteFile(req.file.path);
+      }
+      return res.status(400).json({
+        message: "Datos enviados incorrectamente",
+        error: "Debes rellenar todos los campos requeridos",
+      });
+    }
+
+    //Pedagogo asignado será el usuario logueado con rol de pedagogo
+    let pedagogoAsignado = req.user._id;
+
+    //Verificamos si lo asigna un admin o el propio pedagogo - Solo estos pueden. Admin puede asignar estudiantes a otros pedagogos y el pedagogo puede asignar estudiantes a él mismo.
+    if (req.user.rol === "admin") {
+      const pedagogoInput = req.body.pedagogoAsignado;
+
+      //Comprobamos que se haya asignado un pedagogo
+      if (!pedagogoInput) {
+        if (req.file) {
+          await deleteFile(req.file.path);
+        }
+        return res.status(400).json({
+          message: "Pedagogo asignado obligatorio",
+          error: "Debes asignar un pedagogo al estudiante",
+        });
+      }
+
+      //Comprobamos que el pedagogo asignado existe (por ID o por nombre/email)
+      let pedagogo = null;
+      if (mongoose.Types.ObjectId.isValid(pedagogoInput)) {
+        pedagogo = await User.findById(pedagogoInput);
+      }
+
+      if (!pedagogo) {
+        pedagogo = await User.findOne({
+          $or: [
+            { name: new RegExp(`^${pedagogoInput.toString().trim()}$`, "i") },
+            { email: pedagogoInput.toString().trim().toLowerCase() },
+          ],
+        });
+      }
+
+      if (!pedagogo) {
+        if (req.file) {
+          await deleteFile(req.file.path);
+        }
+        return res.status(404).json({
+          message: "Pedagogo no encontrado",
+          error: "El pedagogo no existe",
+        });
+      }
+
+      //Comprobamos que usuario tenga el rol de pedagogo
+      if (pedagogo.rol !== "pedagogo") {
+        if (req.file) {
+          await deleteFile(req.file.path);
+        }
+        return res.status(403).json({
+          message: "No autorizado",
+          error: "El usuario asignado debe tener el rol de pedagogo",
+        });
+      }
+
+      pedagogoAsignado = pedagogo._id;
+    }
+
+    //2. Verificamos que el estudiante ya existe y no se pueda crear un nuevo estudiante con el mismo tutor - Controlamos minusculas y espacios en blanco
+    const existsStudent = await Student.findOne({
+      name: new RegExp(`^${name.trim()}$`, "i"),
+      emailTutor: emailTutor.trim().toLowerCase(),
+    });
+
+    if (existsStudent) {
+      //Eliminamos la imagen subida en esta petición para rollback
+      if (req.file) {
+        await deleteFile(req.file.path);
+      }
+
+      //Devolvemos error
+      return res.status(400).json({
+        message: "El estudiante ya existe",
+        error: "Ya existe un estudiante con ese nombre y tutor registrado",
+      });
+    }
+
+    //3. Asignamos la imagen (si se subió archivo usamos su ruta, si no usamos la por defecto)
+    const defaultAvatar =
+      process.env.IMAGE_DEFAULT ||
+      "https://res.cloudinary.com/kvayxt5w/image/upload/v1788861354/profile-default.jpg";
+    const avatar = req.file ? req.file.path : defaultAvatar;
+
+    //4. Instanciamos el nuevo estudiante
+    const student = new Student({
+      name: name.trim(),
+      age,
+      course: course.trim(),
+      diagnosis: diagnosis.trim(),
+      nameTutor: nameTutor.trim(),
+      emailTutor: emailTutor.trim().toLowerCase(),
+      phoneNumberTutor: phoneNumberTutor.trim(),
+      tutorRelationship: tutorRelationship.trim(),
+      avatar,
+      pedagogoAsignado,
+    });
+
+    //5. Guardamos en la base de datos
+    await student.save();
+
+    //6. Poblamos el pedagogo asignado
+    await student.populate("pedagogoAsignado", "name email");
+
+    //7. Devolvemos respuesta exitosa
+    return res.status(201).json({
+      message: "Estudiante creado exitosamente",
+      student,
+    });
+  } catch (error) {
+    console.log(error);
+
+    //Verificamos rollback del archivo
+    if (req.file) {
+      await deleteFile(req.file.path);
+    }
+
+    if (error.name === "ConflictError") {
+      return res.status(409).json({
+        message: "Conflicto - El estudiante ya existe",
+        error: error.message,
+      });
+    } else if (error.name === "ValidationError") {
+      return res.status(400).json({
+        message: "Datos enviados incorrectamente",
+        error: error.message,
+      });
+    } else if (error.name === "CastError") {
+      return res.status(400).json({
+        message: "ID inválido",
+        error: error.message,
+      });
+    } else {
+      return res.status(500).json({
+        error: "Error interno del servidor al crear estudiante",
+        details: error.message,
+      });
+    }
+  }
+};
+
 //Función para actualizar Student
 const updateStudent = async (req, res) => {
   try {
@@ -90,6 +270,9 @@ const updateStudent = async (req, res) => {
 
     //Verificamos que el estudiante existe
     if (!student) {
+      if (req.file) {
+        await deleteFile(req.file.path);
+      }
       return res.status(404).json({
         message: "Estudiante no encontrado",
         error: "El estudiante no existe",
@@ -101,6 +284,9 @@ const updateStudent = async (req, res) => {
       req.user.rol === "pedagogo" &&
       !student.pedagogoAsignado?._id?.equals(req.user._id) //Esto permite verificar si el pedagogo asignado es el mismo que el usuario que está haciendo la petición
     ) {
+      if (req.file) {
+        await deleteFile(req.file.path);
+      }
       return res.status(403).json({
         message: "No autorizado",
         error: "No tienes permiso para acceder a este estudiante",
@@ -110,10 +296,44 @@ const updateStudent = async (req, res) => {
     //3. Creamos un objeto con todos los datos del body para ir añadiendo los campos que el Frontend los envíe
     let updateData = { ...req.body };
 
+    // Si el usuario es pedagogo, no puede reasignar el pedagogoAsignado
+    if (req.user.rol === "pedagogo") {
+      delete updateData.pedagogoAsignado;
+    } else if (req.user.rol === "admin" && updateData.pedagogoAsignado) {
+      // Si el admin envía un pedagogoAsignado, validamos que exista y tenga rol pedagogo (por ID o por nombre/email)
+      let pedagogo = null;
+      if (mongoose.Types.ObjectId.isValid(updateData.pedagogoAsignado)) {
+        pedagogo = await User.findById(updateData.pedagogoAsignado);
+      }
+      if (!pedagogo) {
+        pedagogo = await User.findOne({
+          $or: [
+            { name: new RegExp(`^${updateData.pedagogoAsignado.toString().trim()}$`, "i") },
+            { email: updateData.pedagogoAsignado.toString().trim().toLowerCase() },
+          ],
+        });
+      }
+      if (!pedagogo || pedagogo.rol !== "pedagogo") {
+        if (req.file) {
+          await deleteFile(req.file.path);
+        }
+        return res.status(400).json({
+          message: "Pedagogo asignado inválido",
+          error: "El pedagogo asignado no existe o no tiene el rol de pedagogo",
+        });
+      }
+      updateData.pedagogoAsignado = pedagogo._id;
+    }
+
     //Actualización de imagen
     if (req.file) {
+      const defaultAvatar = process.env.IMAGE_DEFAULT || "profile-default.jpg";
+      // Si el estudiante tenía un avatar previo que no es el default, lo eliminamos de Cloudinary
+      if (student.avatar && !student.avatar.includes(defaultAvatar)) {
+        await deleteFile(student.avatar);
+      }
       updateData.avatar = req.file.path;
-    } //Si existe el archivo, añadimos la ruta
+    }
 
     //5. Actualizamos datos del estudiante
     const updatedStudent = await Student.findByIdAndUpdate(id, updateData, {
@@ -133,6 +353,10 @@ const updateStudent = async (req, res) => {
     return res.status(200).json(updatedStudent);
   } catch (error) {
     console.log(error);
+
+    if (req.file) {
+      await deleteFile(req.file.path);
+    }
 
     if (error.name === "CastError") {
       return res.status(400).json({
@@ -234,4 +458,10 @@ const deleteStudent = async (req, res) => {
 };
 
 //Exportamos la función
-export { getStudents, getStudentByID, updateStudent, deleteStudent };
+export {
+  getStudents,
+  getStudentByID,
+  updateStudent,
+  deleteStudent,
+  createStudent,
+};

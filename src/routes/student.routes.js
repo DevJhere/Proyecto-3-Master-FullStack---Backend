@@ -5,6 +5,7 @@ import {
   getStudentByID,
   updateStudent,
   deleteStudent,
+  createStudent,
 } from "../controllers/studentController.js";
 
 //Importamos el middleware
@@ -21,6 +22,7 @@ const router = express.Router();
 router.get("/", isAuth, getStudents);
 router.get("/:id", isAuth, getStudentByID);
 router.put("/:id", isAuth, uploadImage.single("avatar"), updateStudent);
+router.post("/", isAuth, uploadImage.single("avatar"), createStudent);
 router.delete("/:id", isAuth, deleteStudent);
 
 //Exportamos router
