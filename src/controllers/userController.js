@@ -111,8 +111,16 @@ const userLogin = async (req, res) => {
       expiresIn: "2h",
     });
 
+    // Mejora de Autenticación - Recupeacion el usuario logueado
+    const userToReturn = user.toObject();
+    delete userToReturn.password; //Eliminamos la contraseña hash por seguridad para que no se visualice
+
     //4. Enviamos el TOKEN al cliente con la respuesta exitosa
-    return res.status(200).json({ message: "Login exitoso", token });
+    return res.status(200).json({
+      message: "Login exitoso",
+      token,
+      user: userToReturn,
+    });
   } catch (error) {
     console.log(error);
 
@@ -134,7 +142,6 @@ const updateProfileUser = async (req, res) => {
 
     //Verificamos si existe el usuario
     if (!user) {
-
       //Eliminamos el archivo si existe - Evitamos ocupar espacio en la nube
       if (req.file) {
         await deleteFile(req.file.path);
@@ -303,5 +310,20 @@ const deleteUser = async (req, res) => {
   }
 };
 
+
+//7. Función que recupera el perfil del usuario logueado
+const getMe = async (req, res) => {
+  try {
+    return res.status(200).json(req.user);
+  } catch (error) {
+    console.log(error);
+
+    return res.status(500).json({
+      message: "Error interno del servidor",
+      error: error.message,
+    });
+  }
+};
+
 //Exportamos el controlador
-export { userRegister, userLogin, deleteUser, updateProfileUser };
+export { userRegister, userLogin, deleteUser, updateProfileUser, getMe };
