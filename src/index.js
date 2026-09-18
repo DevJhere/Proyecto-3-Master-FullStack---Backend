@@ -20,6 +20,9 @@ import userRoutes from "./routes/user.routes.js";
 //Importamos Express
 import express from "express";
 
+//Importamos cors
+import cors from "cors";
+
 //Llama a la config de la base de datos
 dotenv.config();
 
@@ -35,6 +38,9 @@ const app = express();
 //3. Configurar middleware
 //Permite que express entienda el json que viene del frontend
 app.use(express.json());
+
+//Habilitamos peticiones cors para poder trabajar con el frontend - React
+app.use(cors());
 
 //4. Definimos puerto
 const PORT = process.env.PORT || 3000;
