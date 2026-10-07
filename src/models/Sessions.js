@@ -28,6 +28,10 @@ const sessionSchema = new Schema(
       default: "Pendiente",
       index: true,
     },
+    duration: {
+      type: Number, // Duración en minutos
+      default: 60,
+    },
     attachmentDocument: {
       type: String, //URL Cloudinary
       default: "",
