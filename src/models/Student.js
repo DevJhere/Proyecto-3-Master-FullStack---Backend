@@ -80,7 +80,8 @@ const studentSchema = new Schema(
     },
     avatar: {
       type: String,
-      default: "https://res.cloudinary.com/kvayxt5w/image/upload/v1788861354/profile-default.jpg", //Defecto: Imagen predeterminada
+      default:
+        "https://res.cloudinary.com/kvayxt5w/image/upload/v1788861354/profile-default.jpg", //Defecto: Imagen predeterminada
     },
     tutorRelationship: {
       type: String,
@@ -93,6 +94,25 @@ const studentSchema = new Schema(
       ref: "User", // Hace referencia al modelo User - Relación 1 a Muchos
       required: true,
     },
+    // Añadimos nuevo campo  Report - Informes para gestionar subida de archivos
+    reports: [
+      {
+        title: {
+          type: String,
+          required: [true, "Titulo es requerido"],
+          trim: true,
+        },
+        attachmentDocument: {
+          type: String,
+          required: [true, "URL del documento es requerido"],
+        },
+
+        date: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   {
     timestamps: true, //Crea los campos createdAt y updatedAt

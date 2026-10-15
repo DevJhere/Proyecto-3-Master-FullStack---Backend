@@ -469,6 +469,52 @@ const deleteStudent = async (req, res) => {
   }
 };
 
+//Función para subir los Informes
+const uploadReport = async (req, res) => {
+
+  try {
+    //Obtenemos id y title
+    const { id } = req.params;
+    const { title } = req.body;
+
+    //Verificamos que el archivo haya sido adjuntado
+    if(!req.file){
+      return res.status(400).json({message: "No se ha subido ningún documento",
+        error: "Por favor, selecciona un archivo PDF o documento",});
+    }
+
+    // Buscamos el alumno
+    const student = await Student.findById(id);
+    if(!student){
+      return res.status(404).json({
+         message: "Estudiante no encontrado",
+      });
+    }
+
+    //Creamos el objeto del Informe
+    const newReport = {
+      title: title?.trim() || "Intervención sin evaluar",
+      attachmentDocument: req.file.path,
+      date: new Date(),
+    };
+
+    // Añadimos al incio de la lista de informes del alumno y lo guardamos
+    student.reports.unshift(newReport);
+    await student.save();
+
+    //Informamos del resultado
+    return res.status(201).json({
+      message: "Informe subido correctamente",
+      report:newReport,
+      reports: student.reports, //Devolvemos la lista completa de informes para actualizar la lista en el Frontend
+    });
+    
+  } catch (error) {
+    return res.status(500).json({message: "Error en el servidor al subir el informe",
+      error: error.message,})
+  }
+}
+
 //Exportamos la función
 export {
   getStudents,
@@ -476,4 +522,5 @@ export {
   updateStudent,
   deleteStudent,
   createStudent,
+  uploadReport,
 };
