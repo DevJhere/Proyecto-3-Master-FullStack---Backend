@@ -81,7 +81,7 @@ const getSessions = async (req, res) => {
 
     //3. Ejecutamos la busqueda
     const sessions = await Session.find(queryFilter)
-      .populate("student", "name course diagnosis nameTutor") //Datos clave del alumno
+      .populate("student", "name course diagnosis nameTutor avatar") //Datos clave del alumno
       .populate("pedagogoAsignado", "name email"); //Datos clave del pedagogo
 
     //4. Respondemos con todas las sesiones
