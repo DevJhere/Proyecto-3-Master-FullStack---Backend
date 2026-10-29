@@ -12,6 +12,8 @@ const connectTestDb = async () => {
   assertTestDb();
   if (mongoose.connection.readyState === 1) return;
   await mongoose.connect(process.env.DB_URL, { family: 4 });
+  // Garantiza que los índices (p. ej. email único) existen antes de que empiecen los tests
+  await Promise.all([User.init(), Student.init(), Session.init()]);
 };
 
 const disconnectTestDb = async () => {
