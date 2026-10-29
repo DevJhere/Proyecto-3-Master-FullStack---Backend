@@ -6,6 +6,20 @@ import Student from "../models/Student.js";
 import User from "../models/User.js";
 import Session from "../models/Sessions.js";
 import deleteFile from "../utils/deleteFiles.js";
+import escapeRegExp from "../utils/escapeRegExp.js";
+
+//Campos que se pueden modificar desde PUT /students/:id (los informes solo se gestionan desde su propio endpoint)
+const UPDATABLE_FIELDS = [
+  "name",
+  "age",
+  "course",
+  "diagnosis",
+  "nameTutor",
+  "emailTutor",
+  "phoneNumberTutor",
+  "tutorRelationship",
+  "pedagogoAsignado",
+];
 
 //Definimos función para obtener estudiantes
 const getStudents = async (req, res) => {
@@ -146,7 +160,12 @@ const createStudent = async (req, res) => {
       if (!pedagogo) {
         pedagogo = await User.findOne({
           $or: [
-            { name: new RegExp(`^${pedagogoInput.toString().trim()}$`, "i") },
+            {
+              name: new RegExp(
+                `^${escapeRegExp(pedagogoInput.toString().trim())}$`,
+                "i",
+              ),
+            },
             { email: pedagogoInput.toString().trim().toLowerCase() },
           ],
         });
@@ -178,7 +197,7 @@ const createStudent = async (req, res) => {
 
     //2. Verificamos que el estudiante ya existe y no se pueda crear un nuevo estudiante con el mismo tutor - Controlamos minusculas y espacios en blanco
     const existsStudent = await Student.findOne({
-      name: new RegExp(`^${name.trim()}$`, "i"),
+      name: new RegExp(`^${escapeRegExp(name.trim())}$`, "i"),
       emailTutor: emailTutor.trim().toLowerCase(),
     });
 
@@ -295,8 +314,13 @@ const updateStudent = async (req, res) => {
       });
     }
 
-    //3. Creamos un objeto con todos los datos del body para ir añadiendo los campos que el Frontend los envíe
-    let updateData = { ...req.body };
+    //3. Creamos un objeto solo con los campos permitidos que el Frontend haya enviado
+    let updateData = {};
+    for (const field of UPDATABLE_FIELDS) {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    }
 
     // Si el usuario es pedagogo, no puede reasignar el pedagogoAsignado
     if (req.user.rol === "pedagogo") {
@@ -312,7 +336,7 @@ const updateStudent = async (req, res) => {
           $or: [
             {
               name: new RegExp(
-                `^${updateData.pedagogoAsignado.toString().trim()}$`,
+                `^${escapeRegExp(updateData.pedagogoAsignado.toString().trim())}$`,
                 "i",
               ),
             },
@@ -349,7 +373,7 @@ const updateStudent = async (req, res) => {
 
     //5. Actualizamos datos del estudiante
     const updatedStudent = await Student.findByIdAndUpdate(id, updateData, {
-      new: true, //Devuelve el objeto actualizado
+      returnDocument: "after", //Devuelve el objeto actualizado
       runValidators: true, //Ejecuta las validaciones del schema
     }).populate("pedagogoAsignado", "name email");
 
@@ -442,6 +466,13 @@ const deleteStudent = async (req, res) => {
       }
     }
 
+    //Limpiamos también los archivos de los informes del alumno
+    for (const report of student.reports) {
+      if (report.attachmentDocument) {
+        await deleteFile(report.attachmentDocument);
+      }
+    }
+
     //5. Eliminamos las sesiones del Estudiante
     await Session.deleteMany({ student: id });
 
@@ -486,8 +517,22 @@ const uploadReport = async (req, res) => {
     // Buscamos el alumno
     const student = await Student.findById(id);
     if(!student){
+      //Eliminamos el documento subido en esta petición para no dejarlo huérfano en la nube
+      await deleteFile(req.file.path);
       return res.status(404).json({
          message: "Estudiante no encontrado",
+      });
+    }
+
+    //Un pedagogo solo puede subir informes a sus propios alumnos
+    if (
+      req.user.rol === "pedagogo" &&
+      !student.pedagogoAsignado?.equals(req.user._id)
+    ) {
+      await deleteFile(req.file.path);
+      return res.status(403).json({
+        message: "No autorizado",
+        error: "No tienes permiso para subir informes a este estudiante",
       });
     }
 
@@ -510,6 +555,17 @@ const uploadReport = async (req, res) => {
     });
     
   } catch (error) {
+    if (req.file) {
+      await deleteFile(req.file.path);
+    }
+
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        message: "ID inválido",
+        error: error.message,
+      });
+    }
+
     return res.status(500).json({message: "Error en el servidor al subir el informe",
       error: error.message,})
   }

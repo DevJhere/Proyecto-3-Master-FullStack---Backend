@@ -1,6 +1,4 @@
-/* Tests de autenticación: registro, login, /me y validación del token.
-   Los tests marcados con it.fails documentan un BUG conocido: pasan mientras el bug exista y se pondrán en rojo
-   cuando se corrija; entonces hay que cambiar it.fails por it. */
+/* Tests de autenticación: registro, login, /me y validación del token. */
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import request from "supertest";
 import jwt from "jsonwebtoken";
@@ -110,39 +108,71 @@ describe("POST /api/auth/register", () => {
     expect(res.status).toBe(400);
   });
 
-  // ---- BUGS CONOCIDOS ----
+  it.each(["intruso@admin.com", "intruso@Admin.com", "intruso@admin.com.evil.net"])(
+    "el registro público de %s crea un pedagogo, nunca un admin",
+    async (suffix) => {
+      const body = validUser({ email: uniqueEmail("intruso", suffix.split("@")[1]) });
+      const res = await register(body);
 
-  it.fails("BUG seguridad: un email @admin.com no debe convertir al usuario en admin", async () => {
-    const body = validUser({ email: uniqueEmail("intruso", "admin.com") });
-    await register(body);
-    const saved = await User.findOne({ email: body.email });
-    expect(saved.rol).toBe("pedagogo");
+      expect(res.status).toBe(201);
+      expect((await User.findOne({ email: body.email })).rol).toBe("pedagogo");
+    },
+  );
+
+  it("rechaza contraseñas de menos de 6 caracteres, pero acepta exactamente 6", async () => {
+    // El minLength del modelo se evalúa sobre el hash (60 chars), así que la validación se hace antes de encriptar
+    expect((await register(validUser({ password: "1" }))).status).toBe(400);
+    expect((await register(validUser({ password: "12345" }))).status).toBe(400);
+    expect((await register(validUser({ password: "123456" }))).status).toBe(201);
   });
 
-  it.fails("BUG seguridad: tampoco por un dominio que solo contiene '@admin.com'", async () => {
-    const body = validUser({ email: uniqueEmail("intruso", "admin.com.evil.net") });
-    await register(body);
-    const saved = await User.findOne({ email: body.email });
-    expect(saved.rol).toBe("pedagogo");
-  });
-
-  it.fails("BUG: debe rechazar contraseñas de menos de 6 caracteres", async () => {
-    // minLength del modelo se evalúa sobre el hash (60 chars), así que nunca salta
-    const res = await register(validUser({ password: "1" }));
+  it("rechaza una contraseña que no es texto", async () => {
+    const res = await register(validUser({ password: 1234567 }));
     expect(res.status).toBe(400);
   });
 
-  it.fails("BUG: debe borrar el avatar subido si el registro falla (email duplicado)", async () => {
-    const existing = await createUser();
-    await request(app)
-      .post("/api/auth/register")
-      .field("name", "Otro")
-      .field("email", existing.email)
-      .field("password", TEST_PASSWORD)
-      .field("specialization", "Logopedia")
-      .attach("avatar", Buffer.from("img"), "avatar.png");
+  it("no crea el usuario cuando la contraseña es demasiado corta", async () => {
+    const body = validUser({ password: "123" });
+    await register(body);
+    expect(await User.findOne({ email: body.email })).toBeNull();
+  });
 
-    expect(deleteFile).toHaveBeenCalledTimes(1);
+  describe("borra el avatar subido si el registro falla", () => {
+    const registerWithAvatar = (fields) => {
+      const req = request(app).post("/api/auth/register");
+      for (const [key, value] of Object.entries(fields)) req.field(key, value);
+      return req.attach("avatar", Buffer.from("img"), "avatar.png");
+    };
+
+    it("por email duplicado", async () => {
+      const existing = await createUser();
+      const res = await registerWithAvatar({ ...validUser({ email: existing.email }) });
+
+      expect(res.status).toBe(400);
+      expect(deleteFile).toHaveBeenCalledTimes(1);
+    });
+
+    it("por campos obligatorios sin rellenar", async () => {
+      const { name, ...incomplete } = validUser();
+      const res = await registerWithAvatar(incomplete);
+
+      expect(res.status).toBe(400);
+      expect(deleteFile).toHaveBeenCalledTimes(1);
+    });
+
+    it("por contraseña demasiado corta", async () => {
+      const res = await registerWithAvatar(validUser({ password: "123" }));
+
+      expect(res.status).toBe(400);
+      expect(deleteFile).toHaveBeenCalledTimes(1);
+    });
+
+    it("pero no lo borra cuando el registro es correcto", async () => {
+      const res = await registerWithAvatar(validUser());
+
+      expect(res.status).toBe(201);
+      expect(deleteFile).not.toHaveBeenCalled();
+    });
   });
 });
 
@@ -180,7 +210,7 @@ describe("POST /api/auth/login", () => {
     expect(res.status).toBe(200);
   });
 
-  it.fails("BUG seguridad: el mensaje de error no debe revelar si el email existe", async () => {
+  it("el mensaje de error no debe revelar si el email existe", async () => {
     const wrongPassword = await request(app).post("/api/auth/login").send({ email: "samatha@pedagogo.com", password: "mala" });
     const unknownEmail = await request(app).post("/api/auth/login").send({ email: "nadie@test.com", password: "mala" });
     expect(unknownEmail.body.error).toBe(wrongPassword.body.error);

@@ -1,5 +1,4 @@
-/* Tests de /api/users: listado, actualización de perfil y eliminación.
-   it.fails = BUG conocido (pasa mientras el bug exista; al corregirlo se pone en rojo y hay que cambiarlo por it). */
+/* Tests de /api/users: listado, actualización de perfil y eliminación. */
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import request from "supertest";
 import mongoose from "mongoose";
@@ -46,7 +45,7 @@ describe("GET /api/users", () => {
     expect(JSON.stringify(res.body)).not.toContain('"password"');
   });
 
-  it.fails("BUG seguridad: un pedagogo no debe poder listar todos los usuarios (403)", async () => {
+  it("un pedagogo no debe poder listar todos los usuarios (403)", async () => {
     const res = await request(app).get("/api/users").set(await authHeader(SAMANTHA));
     expect(res.status).toBe(403);
   });
@@ -165,20 +164,18 @@ describe("PUT /api/users/:id", () => {
     expect(deleteFile).toHaveBeenCalledTimes(1);
   });
 
-  // ---- BUGS / HUECOS CONOCIDOS ----
-
-  it.fails("BUG: cambiar el email a uno ya usado debe dar un 4xx, no un 500", async () => {
+  it("cambiar el email a uno ya usado devuelve 409 y no modifica al usuario", async () => {
     const user = await createUser();
     const res = await request(app)
       .put(`/api/users/${user._id}`)
       .set(await authHeader(user.email))
       .send({ email: ADMIN });
 
-    expect(res.status).toBeGreaterThanOrEqual(400);
-    expect(res.status).toBeLessThan(500);
+    expect(res.status).toBe(409);
+    expect((await User.findById(user._id)).email).toBe(user.email);
   });
 
-  it.fails("HUECO: el admin no debería poder quitarse a sí mismo el rol si es el último admin", async () => {
+  it("el último admin no puede quitarse a sí mismo el rol (400)", async () => {
     // Se deja solo un admin temporal para no afectar al admin del seed
     await User.deleteMany({ rol: "admin", email: { $ne: ADMIN } });
     const onlyAdmin = await User.findOne({ email: ADMIN });
@@ -190,9 +187,21 @@ describe("PUT /api/users/:id", () => {
 
     try {
       expect(res.status).toBe(400);
+      expect((await User.findById(onlyAdmin._id)).rol).toBe("admin");
     } finally {
       await User.updateOne({ _id: onlyAdmin._id }, { rol: "admin" }); // restauramos el admin del seed
     }
+  });
+
+  it("si hay otro admin, se puede quitar el rol a un admin", async () => {
+    const secondAdmin = await createUser({ rol: "admin" });
+    const res = await request(app)
+      .put(`/api/users/${secondAdmin._id}`)
+      .set(await authHeader(ADMIN))
+      .send({ rol: "pedagogo" });
+
+    expect(res.status).toBe(200);
+    expect((await User.findById(secondAdmin._id)).rol).toBe("pedagogo");
   });
 });
 

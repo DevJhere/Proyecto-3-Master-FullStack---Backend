@@ -46,5 +46,18 @@ const isAuth = async (req, res, next) => {
     });
   }
 };
-//Exportamos el middleware
-export { isAuth };
+
+//Definimos Función - Solo administradores (se usa después de isAuth)
+const isAdmin = (req, res, next) => {
+  if (req.user?.rol !== "admin") {
+    return res.status(403).json({
+      message: "No autorizado",
+      error: "Esta acción requiere rol de administrador",
+    });
+  }
+
+  next();
+};
+
+//Exportamos los middlewares
+export { isAuth, isAdmin };

@@ -21,9 +21,26 @@ const userRegister = async (req, res) => {
 
     //2. Verficiamos si los datos recuperados son correctos o estan completos
     if (!name || !email || !password || !specialization) {
+      //Eliminamos el avatar subido en esta petición para no dejarlo huérfano en la nube
+      if (req.file) {
+        await deleteFile(req.file.path);
+      }
+
       return res.status(400).json({
         message: "Datos incompletos o incorrectos",
         error: "Debes rellenar todos los campos requeridos",
+      });
+    }
+
+    //La contraseña se valida antes de encriptarla, porque el hash siempre supera el mínimo del modelo
+    if (typeof password !== "string" || password.length < 6) {
+      if (req.file) {
+        await deleteFile(req.file.path);
+      }
+
+      return res.status(400).json({
+        message: "Datos incompletos o incorrectos",
+        error: "La contraseña debe tener al menos 6 caracteres",
       });
     }
 
@@ -31,6 +48,10 @@ const userRegister = async (req, res) => {
     const userRegistered = await User.findOne({ email });
 
     if (userRegistered) {
+      if (req.file) {
+        await deleteFile(req.file.path);
+      }
+
       return res.status(400).json({
         message: "Usuario ya registrado",
         error: "El correo electrónico ya está registrado",
@@ -41,16 +62,13 @@ const userRegister = async (req, res) => {
     const passwordSalt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, passwordSalt);
 
-    //5. Definimos el Rol
-    const rol = email.includes("@admin.com") ? "admin" : "pedagogo";
-
+    //5. El registro público siempre crea un pedagogo (rol por defecto del modelo). Solo un admin puede asignar el rol admin desde PUT /users/:id.
     //6 Creamos el nuevo usuario
     await User.create({
       name,
       email,
       password: passwordHash,
       specialization,
-      rol,
       avatar,
     });
 
@@ -59,6 +77,18 @@ const userRegister = async (req, res) => {
     });
   } catch (error) {
     console.log(error);
+
+    if (req.file) {
+      await deleteFile(req.file.path);
+    }
+
+    //Dos registros simultáneos con el mismo email: el índice único de la base lo detecta
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: "Usuario ya registrado",
+        error: "El correo electrónico ya está registrado",
+      });
+    }
 
     //Verificamos en caso de no obtener los datos completos del usuario y en cualquier otro caso
     if (error.name === "ValidationError") {
@@ -91,9 +121,10 @@ const userLogin = async (req, res) => {
     //2. Verificamos si el usuario existe
     const user = await User.findOne({ email }).select("+password"); //+password para poder obtenerla ya que es private en el modelo
 
+    //Mismo mensaje que con la contraseña incorrecta para no revelar qué emails están registrados
     if (!user) {
       return res.status(401).json({
-        error: "Usuario no registrado",
+        error: "Email o contraseña incorrectos",
       });
     }
 
@@ -212,6 +243,25 @@ const updateProfileUser = async (req, res) => {
       delete updateData.password; //Eliminamos la contraseña para que no sea modificada desde este endpoint
     }
 
+    //Siempre debe quedar al menos un administrador en el sistema
+    if (updateData.rol && updateData.rol !== "admin" && user.rol === "admin") {
+      const otherAdmins = await User.countDocuments({
+        rol: "admin",
+        _id: { $ne: id },
+      });
+
+      if (otherAdmins === 0) {
+        if (req.file) {
+          await deleteFile(req.file.path);
+        }
+
+        return res.status(400).json({
+          message: "Operación no permitida",
+          error: "Debe existir al menos un administrador en el sistema",
+        });
+      }
+    }
+
     // Actualizamos y eliminamos las imágenes de Cloudinary si no es la imagen por defecto
     const defaultAvatar = process.env.IMAGE_DEFAULT || "profile-default.jpg";
 
@@ -225,7 +275,7 @@ const updateProfileUser = async (req, res) => {
 
     //5. Actualizamos los datos
     const updatedUser = await User.findByIdAndUpdate(id, updateData, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
 
@@ -241,7 +291,12 @@ const updateProfileUser = async (req, res) => {
       await deleteFile(req.file.path);
     }
 
-    if (error.name === "ValidationError") {
+    if (error.code === 11000) {
+      return res.status(409).json({
+        message: "Correo electrónico en uso",
+        error: "Ya existe otro usuario con ese correo electrónico",
+      });
+    } else if (error.name === "ValidationError") {
       return res.status(400).json({
         message: "Datos incorrectos del usuario",
         error: error.message,
