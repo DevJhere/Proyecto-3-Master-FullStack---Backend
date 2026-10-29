@@ -9,6 +9,7 @@ import { authHeader } from "./helpers/auth.js";
 
 let data;
 
+// Base limpia + datos del seed antes de ejecutar el archivo
 beforeAll(async () => {
   await connectTestDb();
   await resetDb();
@@ -19,6 +20,7 @@ afterAll(async () => {
   await disconnectTestDb();
 });
 
+// Garantiza que se usa la base de test y que las rutas desconocidas responden con JSON (no con HTML)
 describe("entorno", () => {
   it("usa la base pedagogia-test", () => {
     expect(mongoose.connection.name).toBe("pedagogia-test");
@@ -31,6 +33,7 @@ describe("entorno", () => {
   });
 });
 
+// Flujo mínimo de autenticación: login (ok, credenciales malas, body vacío), /me y protección por token
 describe("auth", () => {
   it("login correcto devuelve token y usuario sin contraseña", async () => {
     const res = await request(app)
@@ -68,6 +71,7 @@ describe("auth", () => {
   });
 });
 
+// Aislamiento por rol: el pedagogo solo ve sus alumnos (3 de Samantha), el admin ve los 5
 describe("permisos básicos", () => {
   it("el pedagogo solo ve sus alumnos", async () => {
     const res = await request(app).get("/api/students").set(await authHeader("samatha@pedagogo.com"));
@@ -89,6 +93,7 @@ describe("permisos básicos", () => {
   });
 });
 
+// El middleware de subida está mockeado en setup.js: el avatar recibe una URL falsa y no se borra ningún archivo
 describe("subida de archivos (Cloudinary mockeado)", () => {
   it("crea un alumno con avatar usando una URL falsa y sin llamar a Cloudinary", async () => {
     const res = await request(app)

@@ -13,17 +13,20 @@ import { createUser, uniqueEmail } from "./helpers/factories.js";
 
 const ADMIN = "jheremi@admin.com";
 const SAMANTHA = "samatha@pedagogo.com";
+// Avatar distinto del de por defecto: solo estos se borran de Cloudinary
 const CUSTOM_AVATAR = "https://res.cloudinary.com/test/image/upload/v1/API_pedagogia/avatars/anterior.png";
 const NEW_OBJECT_ID = () => new mongoose.Types.ObjectId().toString();
 
 let data;
 
+// Base limpia + datos del seed antes de ejecutar el archivo
 beforeAll(async () => {
   await connectTestDb();
   await resetDb();
   data = await seedTestData();
 });
 
+// Reinicia el spy de deleteFile para contar solo las llamadas de cada test
 beforeEach(() => {
   deleteFile.mockClear();
 });
@@ -32,6 +35,7 @@ afterAll(async () => {
   await disconnectTestDb();
 });
 
+// Listado de usuarios: solo el admin, y nunca se expone la contraseña
 describe("GET /api/users", () => {
   it("devuelve 401 sin token", async () => {
     const res = await request(app).get("/api/users");
@@ -51,6 +55,8 @@ describe("GET /api/users", () => {
   });
 });
 
+// Edición de perfil: cada usuario edita el suyo, el admin edita cualquiera y puede cambiar roles.
+// Rol y contraseña no se pueden cambiar por la vía normal; el avatar anterior se borra al subir uno nuevo.
 describe("PUT /api/users/:id", () => {
   it("devuelve 401 sin token", async () => {
     const res = await request(app).put(`/api/users/${data.users.samantha._id}`).send({ name: "X" });
@@ -175,6 +181,7 @@ describe("PUT /api/users/:id", () => {
     expect((await User.findById(user._id)).email).toBe(user.email);
   });
 
+  // Protección para que el sistema nunca se quede sin administradores
   it("el último admin no puede quitarse a sí mismo el rol (400)", async () => {
     // Se deja solo un admin temporal para no afectar al admin del seed
     await User.deleteMany({ rol: "admin", email: { $ne: ADMIN } });
@@ -205,6 +212,7 @@ describe("PUT /api/users/:id", () => {
   });
 });
 
+// Baja de usuarios: solo el admin, nunca a sí mismo, y no si tiene alumnos o sesiones asignados
 describe("DELETE /api/users/:id", () => {
   it("devuelve 401 sin token", async () => {
     const res = await request(app).delete(`/api/users/${data.users.nathan._id}`);
@@ -282,6 +290,7 @@ describe("DELETE /api/users/:id", () => {
   });
 });
 
+// Comprobación final: los borrados rechazados no han afectado a los datos del seed
 describe("integridad del seed tras los tests de usuarios", () => {
   it("los alumnos del seed siguen existiendo", async () => {
     expect(await Student.countDocuments()).toBe(5);

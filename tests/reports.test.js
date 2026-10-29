@@ -16,6 +16,7 @@ const NEW_OBJECT_ID = () => new mongoose.Types.ObjectId().toString();
 
 let data;
 
+// Sube un informe (multipart); con file: false envía el formulario sin archivo para probar el error 400
 const uploadReport = async (studentId, headers, { title, file = true } = {}) => {
   const req = request(app).post(`/api/students/${studentId}/reports`).set(headers);
   if (title !== undefined) req.field("title", title);
@@ -24,12 +25,14 @@ const uploadReport = async (studentId, headers, { title, file = true } = {}) => 
   return req;
 };
 
+// Base limpia + datos del seed antes de ejecutar el archivo
 beforeAll(async () => {
   await connectTestDb();
   await resetDb();
   data = await seedTestData();
 });
 
+// Reinicia el spy de deleteFile para contar solo las llamadas de cada test
 beforeEach(() => {
   deleteFile.mockClear();
 });
@@ -38,6 +41,7 @@ afterAll(async () => {
   await disconnectTestDb();
 });
 
+// Subida de informes: título recortado o por defecto, orden (el más reciente primero), archivo obligatorio y permisos
 describe("POST /api/students/:id/reports", () => {
   it("devuelve 401 sin token", async () => {
     const res = await request(app).post(`/api/students/${data.students.s1._id}/reports`);
@@ -112,6 +116,7 @@ describe("POST /api/students/:id/reports", () => {
     expect(res.status).toBe(400);
   });
 
+  // Si el informe no se guarda, el archivo ya subido a Cloudinary no debe quedar huérfano
   describe("borra el archivo subido cuando el informe no se guarda", () => {
     it("porque el alumno no existe", async () => {
       await uploadReport(NEW_OBJECT_ID(), await authHeader(SAMANTHA), { title: "X" });

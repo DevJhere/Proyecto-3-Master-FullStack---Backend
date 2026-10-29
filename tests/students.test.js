@@ -18,12 +18,14 @@ const NEW_OBJECT_ID = () => new mongoose.Types.ObjectId().toString();
 
 let data;
 
+// Base limpia + datos del seed antes de ejecutar el archivo
 beforeAll(async () => {
   await connectTestDb();
   await resetDb();
   data = await seedTestData();
 });
 
+// Reinicia el spy de deleteFile para contar solo las llamadas de cada test
 beforeEach(() => {
   deleteFile.mockClear();
 });
@@ -32,6 +34,7 @@ afterAll(async () => {
   await disconnectTestDb();
 });
 
+// Listado: el pedagogo ve solo sus alumnos, el admin todos; el pedagogo poblado solo expone _id, name y email
 describe("GET /api/students", () => {
   it("devuelve 401 sin token", async () => {
     expect((await request(app).get("/api/students")).status).toBe(401);
@@ -56,6 +59,7 @@ describe("GET /api/students", () => {
   });
 });
 
+// Detalle: permisos por propietario (403), no encontrado (404) y id mal formado (400)
 describe("GET /api/students/:id", () => {
   it("el pedagogo ve su alumno", async () => {
     const res = await request(app).get(`/api/students/${data.students.s1._id}`).set(await authHeader(SAMANTHA));
@@ -81,6 +85,7 @@ describe("GET /api/students/:id", () => {
   });
 });
 
+// Alta: normalización de textos, avatar, asignación de pedagogo, validaciones del modelo y detección de duplicados
 describe("POST /api/students", () => {
   it("el pedagogo crea un alumno asignado a sí mismo, normalizando los textos", async () => {
     const body = validStudentBody({ name: "  Lucía Prueba  ", emailTutor: "  TUTOR.Lucia@Correo.COM " });
@@ -117,6 +122,7 @@ describe("POST /api/students", () => {
     expect(res.body.student.pedagogoAsignado.email).toBe(SAMANTHA);
   });
 
+  // Un caso por cada campo obligatorio
   it.each(["name", "age", "course", "diagnosis", "nameTutor", "emailTutor", "phoneNumberTutor", "tutorRelationship"])(
     "devuelve 400 si falta %s",
     async (field) => {
@@ -127,6 +133,7 @@ describe("POST /api/students", () => {
     },
   );
 
+  // Valores fuera de rango o del catálogo (curso, diagnóstico, relación) y formatos inválidos de teléfono/email
   it.each([
     ["edad menor de 3", { age: 2 }],
     ["edad mayor de 18", { age: 19 }],
@@ -176,6 +183,7 @@ describe("POST /api/students", () => {
     expect(deleteFile).toHaveBeenCalledTimes(1);
   });
 
+  // El admin debe indicar el pedagogo (por id, email o nombre); el destino tiene que existir y ser pedagogo
   describe("como admin", () => {
     it("sin pedagogoAsignado devuelve 400 (la UI actual no envía este campo)", async () => {
       const res = await request(app).post("/api/students").set(await authHeader(ADMIN)).send(validStudentBody());
@@ -214,6 +222,7 @@ describe("POST /api/students", () => {
     });
   });
 
+  // Los nombres se usan en búsquedas por regex (duplicados, pedagogo por nombre): deben tratarse como texto literal
   describe("nombres con caracteres especiales de regex", () => {
     it.each(["Ana [", "Ana (Test", "A.B.", "Pepe+Luis", "Mª ¿José?"])("permite crear un alumno llamado %s", async (name) => {
       const res = await request(app)
@@ -259,6 +268,7 @@ describe("POST /api/students", () => {
   });
 });
 
+// Edición: el pedagogo edita solo los suyos y no puede reasignar ni tocar los informes; el admin sí puede reasignar
 describe("PUT /api/students/:id", () => {
   it("el pedagogo actualiza su alumno y recibe el alumno actualizado", async () => {
     const student = await createStudent(data.users.samantha._id);
@@ -370,6 +380,7 @@ describe("PUT /api/students/:id", () => {
   });
 });
 
+// Baja: elimina el alumno en cascada (sesiones) y limpia sus archivos en Cloudinary (avatar, documentos, informes)
 describe("DELETE /api/students/:id", () => {
   it("el pedagogo elimina su alumno junto con sus sesiones y limpia Cloudinary", async () => {
     const student = await createStudent(data.users.samantha._id, { avatar: CUSTOM_AVATAR });

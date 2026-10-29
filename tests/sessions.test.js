@@ -23,6 +23,7 @@ const ownSession = async (overrides = {}) => {
   return createSession({ student: student._id, pedagogoAsignado: samanthaId, ...overrides });
 };
 
+// Base limpia + datos del seed antes de ejecutar el archivo
 beforeAll(async () => {
   await connectTestDb();
   await resetDb();
@@ -30,6 +31,7 @@ beforeAll(async () => {
   samanthaId = data.users.samantha._id;
 });
 
+// Reinicia el spy de deleteFile para contar solo las llamadas de cada test
 beforeEach(() => {
   deleteFile.mockClear();
 });
@@ -38,6 +40,8 @@ afterAll(async () => {
   await disconnectTestDb();
 });
 
+// Alta: estado Pendiente por defecto, documento adjunto, duración, validaciones y permisos sobre el alumno.
+// La sesión queda asignada al pedagogo del alumno (también cuando la crea un admin).
 describe("POST /api/sessions", () => {
   it("devuelve 401 sin token", async () => {
     expect((await request(app).post("/api/sessions").send({})).status).toBe(401);
@@ -164,6 +168,7 @@ describe("POST /api/sessions", () => {
   });
 });
 
+// Listado: el pedagogo ve solo sus sesiones, el admin todas; llegan pobladas y ordenadas por fecha
 describe("GET /api/sessions", () => {
   it("devuelve 401 sin token", async () => {
     expect((await request(app).get("/api/sessions")).status).toBe(401);
@@ -201,6 +206,7 @@ describe("GET /api/sessions", () => {
   });
 });
 
+// Detalle: permisos por propietario (403), no encontrada (404) e id mal formado (400)
 describe("GET /api/sessions/:id", () => {
   it("el pedagogo ve su sesión", async () => {
     const session = await ownSession();
@@ -226,6 +232,7 @@ describe("GET /api/sessions/:id", () => {
   });
 });
 
+// Edición: estado y notas, reasignación (solo admin), reemplazo del documento adjunto y limpieza de archivos subidos
 describe("PUT /api/sessions/:id", () => {
   it("el pedagogo cambia el estado y las notas de su sesión", async () => {
     const session = await ownSession();
@@ -318,6 +325,7 @@ describe("PUT /api/sessions/:id", () => {
   });
 });
 
+// Baja: solo el propietario o el admin; al borrar se elimina el documento adjunto (tipo raw) de Cloudinary
 describe("DELETE /api/sessions/:id", () => {
   it("el pedagogo elimina su sesión y se borra su documento (raw)", async () => {
     const session = await ownSession({ attachmentDocument: OLD_DOC });

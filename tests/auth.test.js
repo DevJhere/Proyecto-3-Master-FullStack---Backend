@@ -10,6 +10,7 @@ import { connectTestDb, disconnectTestDb, resetDb, seedTestData, TEST_PASSWORD }
 import { authHeader } from "./helpers/auth.js";
 import { createUser, uniqueEmail } from "./helpers/factories.js";
 
+// Body válido de registro con email único; cada test pisa solo el campo que quiere probar
 const validUser = (overrides = {}) => ({
   name: "Nuevo Usuario",
   email: uniqueEmail("nuevo"),
@@ -20,12 +21,14 @@ const validUser = (overrides = {}) => ({
 
 const register = (body) => request(app).post("/api/auth/register").send(body);
 
+// Base limpia + datos del seed antes de ejecutar el archivo
 beforeAll(async () => {
   await connectTestDb();
   await resetDb();
   await seedTestData();
 });
 
+// Reinicia el spy de deleteFile para contar solo las llamadas de cada test
 beforeEach(() => {
   deleteFile.mockClear();
 });
@@ -34,6 +37,7 @@ afterAll(async () => {
   await disconnectTestDb();
 });
 
+// Registro público: alta con contraseña hasheada, rol siempre "pedagogo", validaciones y limpieza del avatar si falla
 describe("POST /api/auth/register", () => {
   it("registra un pedagogo y guarda la contraseña hasheada", async () => {
     const body = validUser();
@@ -54,6 +58,7 @@ describe("POST /api/auth/register", () => {
     expect(res.status).toBe(200);
   });
 
+  // Evita la escalada de privilegios: nadie puede registrarse como admin desde el endpoint público
   it("ignora el campo rol enviado en el body", async () => {
     const body = validUser({ rol: "admin" });
     await register(body);
@@ -61,6 +66,7 @@ describe("POST /api/auth/register", () => {
     expect(saved.rol).toBe("pedagogo");
   });
 
+  // Un caso por cada campo obligatorio
   it.each(["name", "email", "password", "specialization"])("devuelve 400 si falta %s", async (field) => {
     const body = validUser();
     delete body[field];
@@ -108,6 +114,7 @@ describe("POST /api/auth/register", () => {
     expect(res.status).toBe(400);
   });
 
+  // Un dominio "admin" en el email no concede el rol de administrador
   it.each(["intruso@admin.com", "intruso@Admin.com", "intruso@admin.com.evil.net"])(
     "el registro público de %s crea un pedagogo, nunca un admin",
     async (suffix) => {
@@ -137,6 +144,7 @@ describe("POST /api/auth/register", () => {
     expect(await User.findOne({ email: body.email })).toBeNull();
   });
 
+  // Si el registro falla, el avatar ya subido a Cloudinary no debe quedar huérfano
   describe("borra el avatar subido si el registro falla", () => {
     const registerWithAvatar = (fields) => {
       const req = request(app).post("/api/auth/register");
@@ -176,6 +184,7 @@ describe("POST /api/auth/register", () => {
   });
 });
 
+// Login: contenido del JWT, errores 400/401 y que no se filtre información sobre qué emails existen
 describe("POST /api/auth/login", () => {
   it("devuelve token JWT con el id del usuario y caducidad de 2 horas", async () => {
     const res = await request(app).post("/api/auth/login").send({ email: "samatha@pedagogo.com", password: TEST_PASSWORD });
@@ -217,6 +226,7 @@ describe("POST /api/auth/login", () => {
   });
 });
 
+// El middleware de autenticación rechaza tokens sin Bearer, caducados, falsificados o de usuarios borrados
 describe("GET /api/auth/me y validación del token", () => {
   it("devuelve el usuario sin contraseña", async () => {
     const res = await request(app).get("/api/auth/me").set(await authHeader("jheremi@admin.com"));

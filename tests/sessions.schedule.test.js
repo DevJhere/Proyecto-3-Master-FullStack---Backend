@@ -13,12 +13,14 @@ const OLD_DOC = "https://res.cloudinary.com/test/raw/upload/v1/API_pedagogia/doc
 
 let data;
 
+// Base limpia + datos del seed antes de ejecutar el archivo
 beforeAll(async () => {
   await connectTestDb();
   await resetDb();
   data = await seedTestData();
 });
 
+// Reinicia el spy de deleteFile para contar solo las llamadas de cada test
 beforeEach(() => {
   deleteFile.mockClear();
 });
@@ -42,15 +44,19 @@ const slot = (hour, minute = 0) => {
   return d.toISOString();
 };
 
+// Crea una sesión vía API (POST) para el alumno del pedagogo; permite cambiar el usuario que hace la petición
 const book = (teacher, date, extra = {}, headers = teacher.headers) =>
   request(app)
     .post("/api/sessions")
     .set(headers)
     .send({ student: teacher.student._id, date, ...extra });
 
+// Inserta una sesión directamente en la base (sin pasar por la regla de solapes), útil para preparar escenarios
 const sessionAt = (teacher, date, overrides = {}) =>
   createSession({ student: teacher.student._id, pedagogoAsignado: teacher.pedagogo._id, date: new Date(date), ...overrides });
 
+// Regla de solapes al crear: un pedagogo no puede tener dos sesiones activas a la vez (409).
+// Cuenta la duración de ambas sesiones, ignora las canceladas y es independiente entre pedagogos.
 describe("POST /api/sessions: solapes de horario", () => {
   it("rechaza con 409 una sesión que empieza mientras otra está en curso", async () => {
     const t = await freshTeacher();
@@ -142,6 +148,8 @@ describe("POST /api/sessions: solapes de horario", () => {
   });
 });
 
+// Regla de solapes al editar: solo se comprueba si cambia fecha, duración o se reactiva una cancelada.
+// Además verifica que no se pierda el documento anterior ni queden archivos nuevos huérfanos si la edición falla.
 describe("PUT /api/sessions/:id: solapes de horario y archivos", () => {
   const put = (teacher, sessionId, body, headers = teacher.headers) =>
     request(app).put(`/api/sessions/${sessionId}`).set(headers).send(body);

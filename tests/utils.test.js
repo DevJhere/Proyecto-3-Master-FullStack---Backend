@@ -12,8 +12,11 @@ vi.mock("../src/config/cloudinary.js", () => ({
 // setup.js sustituye deleteFile por un spy en todos los tests: aquí necesitamos la implementación real
 const { default: deleteFile } = await vi.importActual("../src/utils/deleteFiles.js");
 
+// URL base de Cloudinary de ejemplo para construir las URLs de los casos
 const BASE = "https://res.cloudinary.com/demo";
 
+// A partir de la URL de Cloudinary deduce public_id y resource_type; las imágenes pierden la extensión y los raw la conservan.
+// Si la URL no es de Cloudinary no hace nada y, si Cloudinary falla, devuelve false sin lanzar error.
 describe("deleteFile", () => {
   beforeEach(() => {
     destroy.mockReset();
@@ -64,6 +67,7 @@ describe("deleteFile", () => {
   });
 });
 
+// Permite usar texto del usuario dentro de un RegExp como búsqueda literal (nombres con paréntesis, puntos, etc.)
 describe("escapeRegExp", () => {
   it("escapa los caracteres especiales para buscar el texto literal", () => {
     const text = "Ana [1] (Test) a+b*c? ^$ | \\ .";
