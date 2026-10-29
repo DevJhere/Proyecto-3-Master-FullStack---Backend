@@ -6,3 +6,7 @@
 
 .env
 node_modules
+
+# Entornos de tests (contienen credenciales). El example sí se versiona.
+.env.*
+!.env.test.example

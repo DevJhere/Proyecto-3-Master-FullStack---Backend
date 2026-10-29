@@ -6,7 +6,10 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon --env-file=.env src/index.js",
-    "start": "node --env-file=.env src/index.js"
+    "start": "node --env-file=.env src/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "seed:test": "node --env-file=.env.test tests/seed-cli.js"
   },
   "keywords": [],
   "author": "",
@@ -23,6 +26,8 @@
     "multer-storage-cloudinary": "^4.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "supertest": "^7.3.1",
+    "vitest": "^5.0.5"
   }
 }
