@@ -9,6 +9,7 @@ API REST para la gestión de un gabinete pedagógico: usuarios (administradores 
 | Runtime / framework | Node.js (ES Modules) + Express 5 |
 | Base de datos | MongoDB + Mongoose 9 |
 | Autenticación | JWT (`jsonwebtoken`, caducidad 2 h) + contraseñas con `bcrypt` |
+| Seguridad | `helmet` (cabeceras HTTP), CORS restringido y `express-rate-limit` (login) |
 | Archivos | Multer + Cloudinary (avatares y documentos) |
 | Tests | Vitest + Supertest |
 | Gestor de paquetes | pnpm |
@@ -24,11 +25,12 @@ Backend-Pedagogia/
 │   ├── models/                # User, Student, Sessions
 │   ├── controllers/           # userController, studentController, sessionsController
 │   ├── routes/                # auth, user, student, session
-│   ├── middlewares/           # auth.middleware.js (isAuth, isAdmin) y file.middleware.js (subidas)
+│   ├── middlewares/           # auth.middleware.js (isAuth, isAdmin), file.middleware.js (subidas) y security.middleware.js (CORS y límite de login)
 │   ├── utils/                 # deleteFiles, escapeRegExp, students.seed.js
 │   └── data/students.csv      # Datos de ejemplo para el seeder
 ├── tests/                     # Suite de tests (ver sección Tests)
 ├── Esquema - DB/              # Esquema visual de la base de datos (HTML)
+├── .env.example               # Plantilla de variables de entorno (desarrollo/producción)
 └── .env.test.example          # Plantilla de variables para tests
 ```
 
@@ -45,19 +47,22 @@ pnpm install
 ```
 
 ### 3. Variables de entorno
-Crea un archivo `.env` en la raíz (no se versiona):
+Copia la plantilla `.env.example` a `.env` (este archivo no se versiona) y rellénala:
 
-```env
-DB_URL=mongodb+srv://<usuario>:<password>@<cluster>/pedagogia?retryWrites=true&w=majority
-PORT=3000
-JWT_SECRET=<cadena-larga-y-aleatoria>
-CLOUDINARY_CLOUD_NAME=<cloud-name>
-CLOUDINARY_API_KEY=<api-key>
-CLOUDINARY_API_SECRET=<api-secret>
-IMAGE_DEFAULT=profile-default.jpg
+```bash
+cp .env.example .env
 ```
 
-`IMAGE_DEFAULT` es el nombre de la imagen por defecto: los avatares que la contengan no se borran de Cloudinary al eliminar un alumno o usuario.
+| Variable | Obligatoria | Descripción |
+|---|---|---|
+| `DB_URL` | Sí | Cadena de conexión de MongoDB |
+| `PORT` | No (3000) | Puerto del servidor |
+| `JWT_SECRET` | Sí | Cadena larga y aleatoria para firmar los tokens |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Sí | Credenciales de Cloudinary (avatares y documentos) |
+| `IMAGE_DEFAULT` | No | Nombre de la imagen por defecto: los avatares que la contengan no se borran de Cloudinary al eliminar un alumno o usuario |
+| `CORS_ORIGIN` | En producción | Orígenes del frontend autorizados, separados por comas y sin barra final (p. ej. `https://miapp.vercel.app`). Si se deja vacío: en desarrollo se permite `http://localhost:5173`; en producción no se permite ningún origen |
+| `TRUST_PROXY` | Solo tras un proxy | Nº de proxies de confianza (normalmente `1` en Render, Railway o Heroku). Necesario para que el límite de login use la IP real del cliente |
+| `NODE_ENV` | En producción | Pon `production` en el servidor de producción |
 
 ### 4. Scripts
 
@@ -157,7 +162,7 @@ Las respuestas de error siguen el patrón `{ "message": "...", "error": "..." }`
 
 ## Tests
 
-La suite (Vitest + Supertest) cubre autenticación, usuarios, alumnos, informes, sesiones, agenda y utilidades: **8 archivos, 228 tests**.
+La suite (Vitest + Supertest) cubre autenticación, usuarios, alumnos, informes, sesiones, agenda, seguridad (helmet, CORS y límite de login) y utilidades: **9 archivos, 239 tests**.
 
 1. Copia `.env.test.example` a `.env.test` y rellénalo. **`DB_URL` debe apuntar a una base distinta de la real** (por ejemplo `pedagogia-test`). `tests/helpers/guard.js` aborta la ejecución si la base no parece de tests.
 2. Ejecuta `pnpm test`.
@@ -166,11 +171,21 @@ Notas:
 - Cloudinary se sustituye por mocks: los tests no suben ni borran archivos reales.
 - Los archivos se ejecutan de uno en uno (`fileParallelism: false`) porque comparten la misma base remota; la suite tarda alrededor de un minuto.
 - Cada archivo de test lleva comentarios que indican qué funcionalidad cubre.
+- El límite de intentos de login se desactiva cuando `NODE_ENV=test` (Vitest lo establece), porque la suite hace muchos logins seguidos. Su comportamiento se prueba en `tests/security.test.js` con un limitador de prueba.
+- En Windows, la suite completa puede fallar de forma puntual con `listen ENOBUFS` (agotamiento de sockets del sistema). Es un error del entorno, no de la lógica: basta con volver a ejecutarla.
 
-## Seguridad y limitaciones conocidas
+## Seguridad
 
-- CORS está abierto a cualquier origen (`cors()` sin restricciones); en producción conviene limitarlo al dominio del frontend.
-- No hay `helmet` ni límite de peticiones (*rate limiting*), por ejemplo en el login.
+Medidas implementadas (ver `src/app.js` y `src/middlewares/security.middleware.js`):
+
+- **Helmet**: añade cabeceras HTTP de seguridad a todas las respuestas (`X-Content-Type-Options`, `Strict-Transport-Security`, etc.) y oculta `X-Powered-By`.
+- **CORS restringido**: solo los orígenes indicados en `CORS_ORIGIN` pueden usar la API desde un navegador. Las peticiones sin cabecera `Origin` (Postman, curl) no se ven afectadas.
+- **Límite de intentos de login**: `POST /api/auth/login` permite **10 intentos fallidos por IP cada 15 minutos**; los logins correctos no cuentan. Al superarlo responde `429 { "message": "Demasiados intentos", ... }` con la cabecera `Retry-After`. Detrás de un proxy hay que definir `TRUST_PROXY`.
+- Contraseñas cifradas con `bcrypt`, tokens JWT de 2 h, control de roles en cada endpoint y el registro público nunca crea administradores.
+
+## Limitaciones conocidas
+
+- El límite de login se guarda en memoria: se reinicia al reiniciar el servidor y no se comparte entre varias instancias (para escalar habría que usar un almacén externo como Redis).
 - No existe recuperación de contraseña ni verificación de correo.
 - El primer administrador se crea manualmente en la base de datos.
 - Las listas (`GET /students`, `GET /sessions`) no están paginadas en el servidor; la paginación de Alumnos se hace en el cliente.

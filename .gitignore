@@ -10,3 +10,5 @@ node_modules
 # Entornos de tests (contienen credenciales). El example sí se versiona.
 .env.*
 !.env.test.example
+# CAMBIO: la plantilla de variables de entorno sí se versiona (no contiene secretos)
+!.env.example
