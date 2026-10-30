@@ -190,6 +190,10 @@ Notas:
 - El límite de intentos de login se desactiva cuando `NODE_ENV=test` (Vitest lo establece), porque la suite hace muchos logins seguidos. Su comportamiento se prueba en `tests/security.test.js` con un limitador de prueba.
 - En Windows, la suite completa puede fallar de forma puntual con `listen ENOBUFS` (agotamiento de sockets del sistema). Es un error del entorno, no de la lógica: basta con volver a ejecutarla.
 
+## Despliegue
+
+La aplicación está desplegada en Atlas + Render + Vercel. Los pasos, variables de entorno, URLs y verificaciones están en [`DESPLIEGUE.md`](./DESPLIEGUE.md).
+
 ## Seguridad
 
 Medidas implementadas (ver `src/app.js` y `src/middlewares/security.middleware.js`):
