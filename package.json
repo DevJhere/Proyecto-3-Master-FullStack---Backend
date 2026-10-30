@@ -4,12 +4,16 @@
   "description": "",
   "main": "src/index.js",
   "type": "module",
+  "engines": {
+    "node": ">=20.6"
+  },
   "scripts": {
     "dev": "nodemon --env-file=.env src/index.js",
-    "start": "node --env-file=.env src/index.js",
+    "start": "node src/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed:test": "node --env-file=.env.test tests/seed-cli.js"
+    "seed:test": "node --env-file=.env.test tests/seed-cli.js",
+    "seed:admin": "node src/utils/createAdmin.js"
   },
   "keywords": [],
   "author": "",

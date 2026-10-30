@@ -69,15 +69,31 @@ cp .env.example .env
 | Comando | Descripción |
 |---|---|
 | `pnpm dev` | Servidor con recarga automática (nodemon) |
-| `pnpm start` | Servidor en modo producción |
+| `pnpm start` | Servidor en modo producción (lee las variables del entorno; si existe un `.env` también lo carga con dotenv) |
 | `pnpm test` | Ejecuta toda la suite de tests una vez |
 | `pnpm test:watch` | Tests en modo observación |
 | `pnpm seed:test` | Siembra la base de datos **de tests** |
+| `pnpm seed:admin` | Crea (o promociona) el primer administrador. Ver sección siguiente |
 
 El servidor queda en `http://localhost:3000` (o el `PORT` indicado) y la API cuelga de `/api`.
 
 ### 5. Primer administrador
-El registro público (`POST /api/auth/register`) **siempre crea un pedagogo**. El rol `admin` solo lo puede asignar otro administrador. Para crear el primer administrador, registra un usuario normal y cambia su campo `rol` a `"admin"` directamente en MongoDB (Atlas o `mongosh`). A partir de ahí, el administrador gestiona los roles desde la pantalla *Usuarios* del frontend.
+El registro público (`POST /api/auth/register`) **siempre crea un pedagogo**. El rol `admin` solo lo puede asignar otro administrador. Para crear el primer administrador usa el script `seed:admin`, que se ejecuta contra la base que indique `DB_URL` (la de producción si quieres crearlo allí). La contraseña se pasa por variable de entorno para que no quede en el repositorio:
+
+```bash
+# Linux / macOS / Git Bash
+ADMIN_EMAIL=admin@correo.com ADMIN_PASSWORD='<contraseña>' ADMIN_NAME="Nombre Apellido" pnpm seed:admin
+```
+```powershell
+# PowerShell
+$env:ADMIN_EMAIL="admin@correo.com"; $env:ADMIN_PASSWORD="<contraseña>"; $env:ADMIN_NAME="Nombre Apellido"; pnpm seed:admin
+```
+
+- Si el correo no existe, crea un usuario con rol `admin` (contraseña cifrada con bcrypt).
+- Si el correo ya existe, lo promociona a administrador sin cambiar su contraseña.
+- Es repetible: ejecutarlo dos veces no duplica usuarios.
+
+A partir de ahí, el administrador gestiona los roles desde la pantalla *Usuarios* del frontend.
 
 ### Datos de ejemplo (opcional)
 `src/utils/students.seed.js` importa los alumnos de `src/data/students.csv`, creando un pedagogo de ejemplo. **Atención:** ejecuta `Student.deleteMany()`, por lo que borra todos los alumnos existentes. Úsalo solo en una base de desarrollo.
@@ -187,6 +203,6 @@ Medidas implementadas (ver `src/app.js` y `src/middlewares/security.middleware.j
 
 - El límite de login se guarda en memoria: se reinicia al reiniciar el servidor y no se comparte entre varias instancias (para escalar habría que usar un almacén externo como Redis).
 - No existe recuperación de contraseña ni verificación de correo.
-- El primer administrador se crea manualmente en la base de datos.
+- El primer administrador se crea con el script `pnpm seed:admin` (no hay endpoint público para ello, a propósito).
 - Las listas (`GET /students`, `GET /sessions`) no están paginadas en el servidor; la paginación de Alumnos se hace en el cliente.
 - La contraseña de ejemplo del seeder (`password123`) es solo para desarrollo.
